@@ -178,8 +178,9 @@ Nothing is relocated: link your code for the addresses you load it at.
 DMC0) and `[0x84000000,0x85000000)`, outside the protected ranges, four-byte
 aligned, never over a stock load or fill. A patch may replace stock bytes in
 exactly one stock load record anywhere but the protected ranges and the
-hooks core and machines-dn2 qualify; its `stock` bytes must be what the
-stream holds there.
+sites the profile qualifies for its own adapters (the hooks core and
+machines-dn2 use, and any exact data sites); its `stock` bytes must be what
+the stream holds there.
 
 **With other mods.** Several blocks mods combine with each other and with a
 master-output, synth or filter mod as long as no two of them use the same

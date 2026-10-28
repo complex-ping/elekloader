@@ -360,8 +360,8 @@ def blocks_checks(blocks_mods, mods):
         for lo2, hi2, b in patched[i + 1:]:
             if lo < hi2 and lo2 < hi:
                 bad.append('%s and %s both patch DSP code at 0x%08x' % (a.label(), b.label(), max(lo, lo2)))
-        if any(start < hi and lo < end for start, end in profile.get('patch_ranges', ())):
-            bad.append('%s patches DSP code at 0x%08x, a hook the core or machines-dn2 qualifies'
+        if any(start < hi and lo < end for start, end in sharc.qualified_spans(profile)):
+            bad.append('%s patches DSP code at 0x%08x, a site the profile qualifies'
                        % (a.label(), lo))
         if any(start < hi and lo < end for start, end, _m in owned):
             bad.append('%s patches DSP code at 0x%08x inside new DSP records' % (a.label(), lo))

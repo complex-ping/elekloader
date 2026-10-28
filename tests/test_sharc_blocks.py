@@ -7,10 +7,12 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from elekloader import elemod, formats, link, sharc  # noqa: E402
 from elekloader.sdk import build as sdk  # noqa: E402
+from elekloader.sdk.sharc import filter_artifact, voice_artifact  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 STOCK = os.environ.get('ELEKLOADER_DN2_SYX')
@@ -114,12 +116,22 @@ class BlocksTests(unittest.TestCase):
 
     def test_a_patch_may_not_touch_a_qualified_hook_or_new_records(self):
         hook = self.profile['hook'][0]
-        self.refused('a hook the core or machines-dn2 qualifies', self.mod('blocks-a', patches=[(hook, bytes(6))]))
+        self.refused('a site the profile qualifies', self.mod('blocks-a', patches=[(hook, bytes(6))]))
         self.link(self.mod('blocks-a', patches=[(hook + 6, bytes(6))]))
         a = self.mod('blocks-b', loads=[(0x200a0000, bytes(64))])
         self.refused('inside new DSP records', a,
                      self.mod('blocks-c', patches=[(0x200a0010, bytes(4), b'\x01\x00\x01\x00')]))
         self.link(a, self.mod('blocks-c', patches=[(0x20000200, bytes(4))]))
+
+    def test_a_patch_may_not_touch_a_qualified_data_site(self):
+        # a profile's exact data sites (the kind a companion such as a DSP diagnostics mod qualifies) are as off-limits as
+        # its patch ranges: here one made up over stock code, so the check runs without such a profile
+        stock6 = self.stock_at(0x20000300, 6)
+        with patch.dict(self.profile, data_sites={0x20000300: (stock6.hex(), '000000000000')}):
+            self.refused('a site the profile qualifies', self.mod('blocks-a', patches=[(0x20000302, bytes(2))]))
+            with self.assertRaisesRegex(elemod.ModError, 'overlaps a qualified hook'):
+                sharc.insert(self.stream, self.profile, stock_patches=[(0x20000300, stock6, bytes(6))])
+            self.link(self.mod('blocks-b', patches=[(0x20000306, bytes(2))]))
 
     def test_a_section_over_1_mib_needs_the_raised_upload(self):
         data = bytes((i * 2654435761 >> 13) & 0xff for i in range(300000 // 4 * 4))
@@ -132,6 +144,69 @@ class BlocksTests(unittest.TestCase):
         for site in self.upload.doc['sites']:
             at = int(site['addr'], 16) - self.dev.main_load
             self.assertEqual(linked.image[at:at + site['len']].hex(), site['new'])
+
+
+@unittest.skipUnless(STOCK and os.environ.get('ELEKLOADER_CROSS'),
+                     'needs ELEKLOADER_DN2_SYX and ELEKLOADER_CROSS')
+class BlocksWithMachinesTests(unittest.TestCase):
+    """A blocks mod beside machines-dn2's synth and filter: they share the build when their memory and sites do not meet."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.work = tempfile.TemporaryDirectory()
+        root = Path(cls.work.name)
+        cls.stock, cls.dev, cls.rel = formats.load(STOCK)
+        cls.image = formats.main_image(cls.stock, cls.dev)
+        cls.stream = cls.stock.section(7)
+        cls.profile = cls.rel.sharc
+        cls.base = [elemod.load_any(sdk.build(str(ROOT / 'mods' / src), STOCK, str(root / src))[0])
+                    for src in ('core-dn2', 'machines-dn2')]
+        cls.machines = []
+        for kind, producer, native in (('voice', voice_artifact, 'synth'), ('filter', filter_artifact, 'filter')):
+            p = root / kind
+            p.mkdir()
+            (p / 'machine.c').write_text('#include "mk2/machines.h"\n'
+                                         'const struct mk2_%s %s_6 = {6,"PAIR","PAIR"};\n' % (native, kind))
+            (p / 'kernel.json').write_text(json.dumps(producer(bytes(4), bytes(4), 0, 6, 128 if kind == 'voice' else 12)))
+            (p / 'mod.json').write_text(json.dumps({
+                'id': kind, 'version': '0.1', 'device': 'digitone-mk2', 'os': '1.12',
+                'sources': ['machine.c'], 'sharc': {'artifact': 'kernel.json'},
+                'resources': {'core': '0.1'}, 'requires': ['core', 'machines-dn2'],
+                'contribute': [{'to': cls.profile[kind + '_table'], 'data': '00000000',
+                                'relocs': [[0, 'abs32', 'sym:%s_6' % kind, 0]]}]}))
+            cls.machines.append(elemod.load_any(sdk.build(str(p), STOCK, str(p / 'build'))[0]))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.work.cleanup()
+
+    mod = BlocksTests.mod
+    stock_at = BlocksTests.stock_at
+
+    def check(self, blocks):
+        return link.check(self.base + self.machines + [blocks], self.image)
+
+    def test_blocks_link_beside_a_synth_and_a_filter(self):
+        blocks = self.mod('blocks-m', loads=[(0x200a0000, bytes(range(32)))], patches=[(0x20000100, bytes(6))])
+        self.assertEqual(self.check(blocks), [])
+        out = link.link(self.base + self.machines + [blocks], self.image, sharc_stream=self.stream)
+        records = sharc.parse(out.sharc_stream, self.profile)
+        self.assertEqual(next(r.raw[16:] for r in records if r.target == 0x200a0000), bytes(range(32)))
+        self.assertEqual(out.layout['sharc']['blocks'][0]['id'], 'blocks-m')
+        self.assertEqual(sorted(m['id'] for m in out.layout['sharc']['mods']), ['filter', 'voice'])
+        for kind in ('voice', 'filter'):
+            site, _old, new = self.profile[kind + '_hook']
+            r = next(r for r in records if r.flags == sharc.LOAD and r.target <= site < r.target + r.count)
+            at = r.offset + 16 + site - r.target
+            self.assertEqual(out.sharc_stream[at:at + 6], bytes.fromhex(new))
+
+    def test_blocks_may_not_take_the_machines_memory_or_sites(self):
+        for target in (self.profile['voice_range'][0], self.profile['filter_range'][1] - 64):
+            problems = self.check(self.mod('blocks-x%x' % target, loads=[(target, bytes(64))]))
+            self.assertTrue(any('both use DSP memory' in p for p in problems), problems)
+        for site, _old, new in (self.profile['voice_hook'], self.profile['filter_hook'], self.profile['filter_capture']):
+            problems = self.check(self.mod('blocks-p%x' % site, patches=[(site, bytes(len(new) // 2))]))
+            self.assertTrue(any('a site the profile qualifies' in p for p in problems), problems)
 
 
 if __name__ == '__main__':

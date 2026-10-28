@@ -54,6 +54,7 @@ export type SharcProfile = {
   stackMax?: number
   codeGuardBytes?: number
   keyedPitchTable?: [number, string]
+  dataSites?: Record<number, [string, string]>   // exact stock data sites a profile qualifies (stock, replacement)
   blocksAbi?: string                            // a blocks mod's payload ABI
   blocksRanges?: Range[]                       // where a blocks mod may add load / fill records (loader bytes)
   uploadRaise?: [string, number, number, [number, string, string][]]   // resource name, stored and decoded limits, the

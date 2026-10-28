@@ -146,7 +146,7 @@ export function insert(stream: Uint8Array, profile: SharcProfile,
     const [lo, hi] = byteSpan(profile, target, old.length, 'loader-byte', !qualified)
     if (qualified && !profile.patchRanges?.some(([start, end]) => start <= lo && hi <= end))
       throw new ModError('SHARC patch is outside the profile patch range')
-    if (!qualified && (profile.patchRanges ?? []).some(([start, end]) => start < hi && lo < end))
+    if (!qualified && qualifiedSpans(profile).some(([start, end]) => start < hi && lo < end))
       throw new ModError('SHARC stock patch overlaps a qualified hook')
     if (done.some(([start, end]) => start < hi && lo < end)) throw new ModError('SHARC patches overlap')
     done.push([lo, hi])
@@ -189,6 +189,14 @@ export type SharcPayload = {
   entries: { [name: string]: number } | null
   stackBytes: number
   owner: [number, number]
+}
+
+/** Loader-byte spans of every stock site the profile qualifies for its own adapters: the patch ranges, and the exact
+ * data sites a profile may add. A blocks patch may touch none of them. */
+export function qualifiedSpans(profile: SharcProfile): [number, number][] {
+  const spans: [number, number][] = (profile.patchRanges ?? []).map(([a, b]) => [a, b])
+  for (const [a, [old]] of Object.entries(profile.dataSites ?? {})) spans.push([Number(a), Number(a) + old.length / 2])
+  return spans
 }
 
 /** -> [storedMax, decodedMax] for a build whose main OS is `mainImage`: the profile's, or its uploadRaise's when the

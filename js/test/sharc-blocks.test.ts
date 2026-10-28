@@ -37,3 +37,12 @@ test('the upload limits follow the main image', () => {
   for (const [a, , hex] of profile.uploadRaise![3]) raised.set(hex.match(/../g)!.map(x => parseInt(x, 16)), a - base)
   assert.deepEqual(limits(profile, raised, base), [0x180000, 0x17ffff])
 })
+
+test('a profile\'s qualified sites: its patch ranges and any exact data sites', async () => {
+  const { qualifiedSpans, insert } = await import('../src/sharc.ts')
+  assert.deepEqual(qualifiedSpans(profile), profile.patchRanges)
+  const withData = { ...profile, dataSites: { 0x20000300: ['000000000000', '010000000000'] as [string, string] } }
+  assert.deepEqual(qualifiedSpans(withData).at(-1), [0x20000300, 0x20000306])
+  assert.throws(() => insert(new Uint8Array(), withData, [], [], [], [[0x20000302, new Uint8Array(2), new Uint8Array(2)]]),
+    (e: unknown) => e instanceof ModError)
+})

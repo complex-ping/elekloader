@@ -169,8 +169,8 @@ external('blocks_checks', '<> and <> both use DSP memory 0x<>-0x<>', 'tests/test
          ['both use DSP memory', 'test_two_mods_may_not_share_dsp_memory'])
 external('blocks_checks', '<> and <> both patch DSP code at 0x<>', 'tests/test_sharc_blocks.py',
          ['both patch DSP code', 'test_two_mods_may_not_patch_the_same_code'])
-external('blocks_checks', '<> patches DSP code at 0x<>, a hook the core or machines-dn2 qualifies',
-         'tests/test_sharc_blocks.py', ['a hook the core or machines-dn2 qualifies',
+external('blocks_checks', '<> patches DSP code at 0x<>, a site the profile qualifies',
+         'tests/test_sharc_blocks.py', ['a site the profile qualifies',
                                         'test_a_patch_may_not_touch_a_qualified_hook_or_new_records'])
 external('blocks_checks', '<> patches DSP code at 0x<> inside new DSP records', 'tests/test_sharc_blocks.py',
          ['inside new DSP records', 'test_a_patch_may_not_touch_a_qualified_hook_or_new_records'])

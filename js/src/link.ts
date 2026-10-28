@@ -378,8 +378,8 @@ export function blocksChecks(blocksMods: Mod2[], mods: Mod2[]): string[] {
   patched.forEach(([lo, hi, a], i) => {
     for (const [lo2, hi2, b] of patched.slice(i + 1))
       if (lo < hi2 && lo2 < hi) bad.push(`${a.label()} and ${b.label()} both patch DSP code at ${hex8(Math.max(lo, lo2))}`)
-    if ((profile.patchRanges ?? []).some(([start, end]) => start < hi && lo < end))
-      bad.push(`${a.label()} patches DSP code at ${hex8(lo)}, a hook the core or machines-dn2 qualifies`)
+    if (sharcRecords.qualifiedSpans(profile).some(([start, end]) => start < hi && lo < end))
+      bad.push(`${a.label()} patches DSP code at ${hex8(lo)}, a site the profile qualifies`)
     if (owned.some(([start, end]) => start < hi && lo < end))
       bad.push(`${a.label()} patches DSP code at ${hex8(lo)} inside new DSP records`)
   })

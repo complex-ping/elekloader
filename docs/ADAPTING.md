@@ -3210,7 +3210,7 @@ Some differences from an octabam build, by design:
 | `DN2 filter G needs a label of 1..5 printable ASCII characters and a default of 0..127` | a filter descriptor's `g` has an empty, too long or non-printable label, or a default above 127 | give G a label of one to five printable ASCII characters and a default of 0..127, or leave `g` out ([filter contract](MACHINES-DN2-FILTER.md)) |
 | `both use DSP memory` | two SHARC mods load or fill the same DSP bytes, or a blocks mod uses another mod's owner | move one mod's blocks; leave the 32 KiB at 0x20090000 to the master, synth and filter mods when you combine with them |
 | `both patch DSP code` | two blocks mods replace the same stock DSP bytes | combine the two hooks into one mod, or hook another instruction |
-| `a hook the core or machines-dn2 qualifies` | a blocks patch touches one of the profile's qualified hook instructions | hook a neighbouring instruction instead |
+| `a site the profile qualifies` | a blocks patch touches one of the profile's qualified hook instructions | hook a neighbouring instruction instead |
 | `inside new DSP records` | a blocks patch targets bytes another mod loads | patch your own blocks in their `loads`, not as a patch |
 | `SHARC blocks load or fill is outside the profile blocks ranges` | a load or fill is outside L2 0x20088400-0x200C0000 and the DDR ranges | move it into a [blocks range](FORMAT.md#digitone-ii-sharc-blocks) |
 | `SHARC decoded stream exceeds the profile limit` | the section 7 the build writes is over 1 MiB decoded | shrink the blocks, or add `dsp-upload-dn2` (1.5 MiB) |

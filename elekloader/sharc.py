@@ -178,7 +178,7 @@ def insert(stream, profile, *, loads=(), fills=(), patches=(), stock_patches=(),
         lo, hi = byte_span(profile, target, len(old), check_protected=not qualified)
         if qualified and not any(start <= lo and hi <= end for start, end in profile.get('patch_ranges', ())):
             raise ModError('SHARC patch is outside the profile patch range')
-        if not qualified and any(start < hi and lo < end for start, end in profile.get('patch_ranges', ())):
+        if not qualified and any(start < hi and lo < end for start, end in qualified_spans(profile)):
             raise ModError('SHARC stock patch overlaps a qualified hook')
         if any(start < hi and lo < end for start, end in done):
             raise ModError('SHARC patches overlap')
@@ -215,6 +215,14 @@ def insert(stream, profile, *, loads=(), fills=(), patches=(), stock_patches=(),
                        patched[first.offset + 16:records[-1].offset], inserted, records[-1].raw))
     parse(result, profile)
     return result
+
+
+def qualified_spans(profile):
+    """Loader-byte spans of every stock site the profile qualifies for its own adapters: the patch ranges, and the
+    exact data sites a profile may add. A blocks patch may touch none of them."""
+    spans = [tuple(r) for r in profile.get('patch_ranges', ())]
+    spans += [(a, a + len(old) // 2) for a, (old, _new) in profile.get('data_sites', {}).items()]
+    return spans
 
 
 def limits(profile, main_image, main_load):
