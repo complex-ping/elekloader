@@ -165,6 +165,15 @@ external('check', '<>: SHARC <> machine_id must match its single native <> regis
                                       'test_pair_binds_both_hooks_and_is_order_independent'])
 external('check', '<>: DN2 filter G needs a label of 1..5 printable ASCII characters and a default of 0..127',
          'tests/test_sharc_filter.py', ['DN2 filter G needs a label', 'test_refuses_an_invalid_g_and_links_a_valid_one'])
+external('blocks_checks', '<> and <> both use DSP memory 0x<>-0x<>', 'tests/test_sharc_blocks.py',
+         ['both use DSP memory', 'test_two_mods_may_not_share_dsp_memory'])
+external('blocks_checks', '<> and <> both patch DSP code at 0x<>', 'tests/test_sharc_blocks.py',
+         ['both patch DSP code', 'test_two_mods_may_not_patch_the_same_code'])
+external('blocks_checks', '<> patches DSP code at 0x<>, a hook the core or machines-dn2 qualifies',
+         'tests/test_sharc_blocks.py', ['a hook the core or machines-dn2 qualifies',
+                                        'test_a_patch_may_not_touch_a_qualified_hook_or_new_records'])
+external('blocks_checks', '<> patches DSP code at 0x<> inside new DSP records', 'tests/test_sharc_blocks.py',
+         ['inside new DSP records', 'test_a_patch_may_not_touch_a_qualified_hook_or_new_records'])
 external('link', 'SHARC mod needs the stock section-7 stream', 'tests/test_sharc_active.py',
          'SHARC mod needs the stock section-7 stream')
 external('link', 'SHARC stored section exceeds the profile limit', 'tests/test_sharc_active.py',

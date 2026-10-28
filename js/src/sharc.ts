@@ -117,7 +117,9 @@ function join(chunks: Uint8Array[]): Uint8Array {
 /** One insertion before FINAL. Only the profile's qualified loader-byte ranges are eligible. */
 export function insert(stream: Uint8Array, profile: SharcProfile,
   loads: [number, Uint8Array][] = [], fills: [number, number, number][] = [],
-  patches: [number, Uint8Array, Uint8Array][] = []): Uint8Array {
+  patches: [number, Uint8Array, Uint8Array][] = [], stockPatches: [number, Uint8Array, Uint8Array][] = [],
+  owned: [number, number][] = [], decodedMax: number | null = null): Uint8Array {
+  if (decodedMax !== null) profile = { ...profile, decodedMax }
   const records = parse(stream, profile)
   if (sha(stream) !== profile.decodedSha256) throw new ModError('SHARC stock DSP hash does not match the profile')
   const additions: [number, number, number, number, Uint8Array][] = [], spans: [number, number][] = []
@@ -131,15 +133,23 @@ export function insert(stream: Uint8Array, profile: SharcProfile,
     spans.push([target, count])
     additions.push([FILL, target, count, word, new Uint8Array()])
   }
-  if (!additions.length && !patches.length) return Uint8Array.from(stream)
+  if (!additions.length && !patches.length && !stockPatches.length) return Uint8Array.from(stream)
   const patched = Uint8Array.from(stream)
-  for (const [target, old, replacement] of patches) {
+  const done: [number, number][] = []
+  const all: [[number, Uint8Array, Uint8Array], boolean][] = [
+    ...patches.map(p => [p, true] as [[number, Uint8Array, Uint8Array], boolean]),
+    ...stockPatches.map(p => [p, false] as [[number, Uint8Array, Uint8Array], boolean])]
+  for (const [[target, old, replacement], qualified] of all) {
     if (!(old instanceof Uint8Array) || !(replacement instanceof Uint8Array) || !old.length ||
       old.length !== replacement.length || target % 2 || old.length % 2)
       throw new ModError('SHARC patch needs equal nonempty instruction bytes')
-    const [lo, hi] = byteSpan(profile, target, old.length, 'loader-byte', false)
-    if (!profile.patchRanges?.some(([start, end]) => start <= lo && hi <= end))
+    const [lo, hi] = byteSpan(profile, target, old.length, 'loader-byte', !qualified)
+    if (qualified && !profile.patchRanges?.some(([start, end]) => start <= lo && hi <= end))
       throw new ModError('SHARC patch is outside the profile patch range')
+    if (!qualified && (profile.patchRanges ?? []).some(([start, end]) => start < hi && lo < end))
+      throw new ModError('SHARC stock patch overlaps a qualified hook')
+    if (done.some(([start, end]) => start < hi && lo < end)) throw new ModError('SHARC patches overlap')
+    done.push([lo, hi])
     const overlaps = records.filter(r => (r.flags === LOAD || r.flags === FILL) && r.target < hi && lo < r.target + r.count)
     if (overlaps.length !== 1 || overlaps[0].flags !== LOAD || overlaps[0].target > lo || hi > overlaps[0].target + overlaps[0].count)
       throw new ModError('SHARC patch needs one unambiguous stock load')
@@ -152,7 +162,7 @@ export function insert(stream: Uint8Array, profile: SharcProfile,
   for (const [target, count] of spans) {
     const [lo, hi] = byteSpan(profile, target, count)
     if (target % 4 || count % 4) throw new ModError('SHARC new load or fill must be four-byte aligned')
-    if (!profile.ownedRanges.some(([start, end]) => start <= lo && hi <= end))
+    if (![...profile.ownedRanges, ...owned].some(([start, end]) => start <= lo && hi <= end))
       throw new ModError('SHARC new load or fill is outside the profile-owned ranges')
     if (occupied.some(([start, end]) => lo < end && start < hi))
       throw new ModError('SHARC new load or fill overlaps an existing load or fill')
@@ -170,6 +180,8 @@ export function insert(stream: Uint8Array, profile: SharcProfile,
 }
 
 export type SharcPayload = {
+  blocks?: { loads: [number, Uint8Array][], fills: [number, number, number][], patches: [number, Uint8Array, Uint8Array][],
+    spans: [number, number][] }
   machineId?: number
   machineKind?: 'voice' | 'filter'
   segments: [number, 'code' | 'data', Uint8Array][]
@@ -179,9 +191,75 @@ export type SharcPayload = {
   owner: [number, number]
 }
 
+/** -> [storedMax, decodedMax] for a build whose main OS is `mainImage`: the profile's, or its uploadRaise's when the
+ * image holds all of that raise's sites (the main OS's own upload buffers and checks). */
+export function limits(profile: SharcProfile, mainImage: Uint8Array, mainLoad: number): [number, number] {
+  const raise = profile.uploadRaise
+  if (raise && raise[3].every(([a, , raised]) => {
+    const want = raised.match(/../g)!.map(x => parseInt(x, 16))
+    return want.every((b, i) => mainImage[a - mainLoad + i] === b)
+  })) return [raise[1], raise[2]]
+  return [profile.storedMax, profile.decodedMax]
+}
+
+function blob(item: any, keys: string, what: string): any {
+  if (!item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).sort().join(',') !== keys)
+    throw new ModError(`SHARC ${what} needs exactly ${keys.split(',').join(', ')}`)
+  return item
+}
+
+function hexBytes(h: any, what: string): Uint8Array {
+  if (typeof h !== 'string' || !/^(?:[0-9a-fA-F]{2})+$/.test(h)) throw new ModError(`SHARC ${what} has invalid hex bytes`)
+  return Uint8Array.from(h.match(/../g)!.map((pair: string) => parseInt(pair, 16)))
+}
+
+/** A blocks payload: new load and fill records in the profile's blocks ranges, and stock-guarded patches of stock code. */
+export function blocksPayload(doc: any, profile: SharcProfile): SharcPayload {
+  if (Object.keys(doc).sort().join(',') !== 'abi,fills,loads,patches')
+    throw new ModError('SHARC blocks payload needs exactly abi, loads, fills, patches')
+  const ranges = profile.blocksRanges!
+  const loads: [number, Uint8Array][] = [], fills: [number, number, number][] = []
+  const patches: [number, Uint8Array, Uint8Array][] = [], spans: [number, number][] = []
+  for (const kind of ['loads', 'fills', 'patches'])
+    if (!Array.isArray(doc[kind])) throw new ModError(`SHARC blocks ${kind} must be an array`)
+  for (const item of doc.loads) {
+    blob(item, 'hex,target', 'blocks load')
+    const target = item.target, data = hexBytes(item.hex, 'blocks load')
+    if (!uint32(target) || target % 4 || data.length % 4) throw new ModError('SHARC blocks load is unaligned')
+    loads.push([target, data]); spans.push([target, data.length])
+  }
+  for (const item of doc.fills) {
+    blob(item, 'size_bytes,target,word', 'blocks fill')
+    const { target, size_bytes: count, word } = item
+    if (!uint32(target) || !uint32(count) || !count || !uint32(word) || target % 4 || count % 4)
+      throw new ModError('SHARC blocks fill is unaligned or empty')
+    fills.push([target, count, word]); spans.push([target, count])
+  }
+  if (!loads.length && !fills.length && !doc.patches.length) throw new ModError('SHARC blocks payload is empty')
+  const owned: [number, number][] = []
+  for (const [target, count] of spans) {
+    const [lo, hi] = byteSpan(profile, target, count)
+    if (!ranges.some(([start, end]) => start <= lo && hi <= end))
+      throw new ModError('SHARC blocks load or fill is outside the profile blocks ranges')
+    if (owned.some(([start, end]) => lo < end && start < hi)) throw new ModError('SHARC blocks loads and fills overlap')
+    owned.push([lo, hi])
+  }
+  for (const item of doc.patches) {
+    blob(item, 'hex,stock,target', 'blocks patch')
+    const target = item.target, old = hexBytes(item.stock, 'blocks patch'), replacement = hexBytes(item.hex, 'blocks patch')
+    if (!uint32(target) || target % 2 || old.length !== replacement.length || old.length % 2)
+      throw new ModError('SHARC blocks patch needs equal, even stock and new bytes at an even address')
+    patches.push([target, old, replacement])
+  }
+  return { blocks: { loads, fills, patches, spans: owned }, segments: [], zero: [], entries: null, stackBytes: 0,
+    owner: [0, 0] }
+}
+
 /** Validate the narrow prelinked format-2 payload; offsets are owner bytes. */
 export function modulePayload(doc: any, profile: SharcProfile | undefined, core = false): SharcPayload {
   if (!profile?.abi) throw new ModError('SHARC payload has no supported device ABI')
+  if (!core && doc && typeof doc === 'object' && !Array.isArray(doc) && profile.blocksAbi && doc.abi === profile.blocksAbi)
+    return blocksPayload(doc, profile)
   const kind = !core ? (['voice', 'filter'] as const).find(k =>
     profile[`${k}Abi`] !== undefined && doc?.abi === profile[`${k}Abi`]) : undefined
   const keys = ['abi', 'entries', ...(kind ? ['machine_id'] : []), 'segments', 'stack_bytes', 'zero']

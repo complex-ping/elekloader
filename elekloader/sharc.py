@@ -142,12 +142,17 @@ def _header(flags, target, count, argument):
     return bytes(raw)
 
 
-def insert(stream, profile, *, loads=(), fills=(), patches=()):
+def insert(stream, profile, *, loads=(), fills=(), patches=(), stock_patches=(), owned=(), decoded_max=None):
     """Insert once before FINAL; load tuples are (address, bytes), fills (address, count, word).
 
-    New records use owned ranges; an exact stock instruction may be replaced
-    only at a separately qualified patch range.
+    New records use owned ranges (the profile's, plus `owned`: a blocks mod's
+    profiled ranges); an exact stock instruction may be replaced only at a
+    separately qualified patch range, or, as a `stock_patches` entry, anywhere
+    in a stock load outside the protected ranges. `decoded_max` replaces the
+    profile's limit when the build raises the main OS's upload buffers.
     """
+    if decoded_max is not None:
+        profile = dict(profile, decoded_max=decoded_max)
     records = parse(stream, profile)
     if sha(stream) != profile['decoded_sha256']:
         raise ModError('SHARC stock DSP hash does not match the profile')
@@ -162,16 +167,22 @@ def insert(stream, profile, *, loads=(), fills=(), patches=()):
             raise ModError('SHARC fill word must be uint32')
         spans.append((target, count))
         additions.append((FILL, target, count, word, b''))
-    if not additions and not patches:
+    if not additions and not patches and not stock_patches:
         return bytes(stream)
     patched = bytearray(stream)
-    for target, old, new in patches:
+    done = []
+    for (target, old, new), qualified in [(p, True) for p in patches] + [(p, False) for p in stock_patches]:
         if not isinstance(old, bytes) or not isinstance(new, bytes) or not old or len(old) != len(new) \
                 or target % 2 or len(old) % 2:
             raise ModError('SHARC patch needs equal nonempty instruction bytes')
-        lo, hi = byte_span(profile, target, len(old), check_protected=False)
-        if not any(start <= lo and hi <= end for start, end in profile.get('patch_ranges', ())):
+        lo, hi = byte_span(profile, target, len(old), check_protected=not qualified)
+        if qualified and not any(start <= lo and hi <= end for start, end in profile.get('patch_ranges', ())):
             raise ModError('SHARC patch is outside the profile patch range')
+        if not qualified and any(start < hi and lo < end for start, end in profile.get('patch_ranges', ())):
+            raise ModError('SHARC stock patch overlaps a qualified hook')
+        if any(start < hi and lo < end for start, end in done):
+            raise ModError('SHARC patches overlap')
+        done.append((lo, hi))
         overlaps = [r for r in records if r.flags in (LOAD, FILL)
                     and r.target < hi and lo < r.target + r.count]
         if len(overlaps) != 1 or overlaps[0].flags != LOAD \
@@ -187,7 +198,7 @@ def insert(stream, profile, *, loads=(), fills=(), patches=()):
         lo, hi = byte_span(profile, target, count)
         if target % 4 or count % 4:
             raise ModError('SHARC new load or fill must be four-byte aligned')
-        if not any(start <= lo and hi <= end for start, end in profile['owned_ranges']):
+        if not any(start <= lo and hi <= end for start, end in tuple(profile['owned_ranges']) + tuple(owned)):
             raise ModError('SHARC new load or fill is outside the profile-owned ranges')
         if any(lo < end and start < hi for start, end in occupied):
             raise ModError('SHARC new load or fill overlaps an existing load or fill')
@@ -206,10 +217,81 @@ def insert(stream, profile, *, loads=(), fills=(), patches=()):
     return result
 
 
+def limits(profile, main_image, main_load):
+    """-> (stored_max, decoded_max) for a build whose main OS is `main_image`: the profile's, or its upload_raise's
+    when the image holds all of that raise's sites (the main OS's own upload buffers and checks)."""
+    raise_ = profile.get('upload_raise')
+    if raise_ and all(bytes(main_image[a - main_load:a - main_load + len(new) // 2]) == bytes.fromhex(new)
+                      for a, _old, new in raise_[3]):
+        return raise_[1], raise_[2]
+    return profile['stored_max'], profile['decoded_max']
+
+
+def _blob(item, keys, what):
+    if not isinstance(item, dict) or set(item) != keys:
+        raise ModError('SHARC %s needs exactly %s' % (what, ', '.join(sorted(keys))))
+    return item
+
+
+def _hexbytes(h, what):
+    if not isinstance(h, str) or not re.fullmatch(r'(?:[0-9a-fA-F]{2})+', h):
+        raise ModError('SHARC %s has invalid hex bytes' % what)
+    return bytes.fromhex(h)
+
+
+def blocks_payload(doc, profile):
+    """A blocks payload (docs/FORMAT.md, "Digitone II SHARC blocks"): new load and
+    fill records in the profile's blocks ranges, and stock-guarded patches of stock
+    code. Addresses are loader bytes; nothing is relocated."""
+    if set(doc) != {'abi', 'loads', 'fills', 'patches'}:
+        raise ModError('SHARC blocks payload needs exactly abi, loads, fills, patches')
+    ranges = profile['blocks_ranges']
+    loads, fills, patches, spans = [], [], [], []
+    for kind in ('loads', 'fills', 'patches'):
+        if not isinstance(doc[kind], list):
+            raise ModError('SHARC blocks %s must be an array' % kind)
+    for item in doc['loads']:
+        _blob(item, {'target', 'hex'}, 'blocks load')
+        target, data = item['target'], _hexbytes(item['hex'], 'blocks load')
+        if not _uint32(target) or target % 4 or len(data) % 4:
+            raise ModError('SHARC blocks load is unaligned')
+        loads.append((target, data))
+        spans.append((target, len(data)))
+    for item in doc['fills']:
+        _blob(item, {'target', 'size_bytes', 'word'}, 'blocks fill')
+        target, count, word = item['target'], item['size_bytes'], item['word']
+        if not _uint32(target) or not _uint32(count) or not count or not _uint32(word) \
+                or target % 4 or count % 4:
+            raise ModError('SHARC blocks fill is unaligned or empty')
+        fills.append((target, count, word))
+        spans.append((target, count))
+    if not loads and not fills and not doc['patches']:
+        raise ModError('SHARC blocks payload is empty')
+    owned = []
+    for target, count in spans:
+        lo, hi = byte_span(profile, target, count)
+        if not any(start <= lo and hi <= end for start, end in ranges):
+            raise ModError('SHARC blocks load or fill is outside the profile blocks ranges')
+        if any(lo < end and start < hi for start, end in owned):
+            raise ModError('SHARC blocks loads and fills overlap')
+        owned.append((lo, hi))
+    for item in doc['patches']:
+        _blob(item, {'target', 'stock', 'hex'}, 'blocks patch')
+        target = item['target']
+        old, new = _hexbytes(item['stock'], 'blocks patch'), _hexbytes(item['hex'], 'blocks patch')
+        if not _uint32(target) or target % 2 or len(old) != len(new) or len(old) % 2:
+            raise ModError('SHARC blocks patch needs equal, even stock and new bytes at an even address')
+        patches.append((target, old, new))
+    return {'blocks': True, 'loads': loads, 'fills': fills, 'patches': patches, 'spans': owned,
+            'entries': None, 'stack_bytes': 0}
+
+
 def module_payload(doc, profile, core=False):
     """Validate the narrow prelinked format-2 payload; offsets are owner bytes."""
     if not profile or not profile.get('abi'):
         raise ModError('SHARC payload has no supported device ABI')
+    if not core and isinstance(doc, dict) and profile.get('blocks_abi') and doc.get('abi') == profile['blocks_abi']:
+        return blocks_payload(doc, profile)
     machine_kind = next((k for k in ('voice', 'filter') if not core and isinstance(doc, dict)
                  and profile.get(k + '_abi') and doc.get('abi') == profile[k + '_abi']), None)
     keys = {'abi', 'segments', 'zero', 'entries', 'stack_bytes'}

@@ -354,6 +354,38 @@ function dspNeeds(m: Mod2): Set<string> {
   return out
 }
 
+/** Digitone II SHARC blocks mods: no two SHARC mods' new records or patches may meet, and no patch may touch a
+ * qualified hook. -> problems. */
+export function blocksChecks(blocksMods: Mod2[], mods: Mod2[]): string[] {
+  if (!blocksMods.length) return []
+  const profile = blocksMods[0].rel.sharc!
+  const owned: [number, number, Mod2][] = [], patched: [number, number, Mod2][] = [], bad: string[] = []
+  for (const m of mods) {
+    if (!m.sharc) continue
+    if (m.sharc.blocks) {
+      for (const [lo, hi] of m.sharc.blocks.spans) owned.push([lo, hi, m])
+      for (const [target, old] of m.sharc.blocks.patches) {
+        const [lo, hi] = sharcRecords.byteSpan(profile, target, old.length, 'loader-byte', false)
+        patched.push([lo, hi, m])
+      }
+    } else if (m.sharc.owner) owned.push([m.sharc.owner[0], m.sharc.owner[1], m])
+  }
+  owned.forEach(([lo, hi, a], i) => {
+    for (const [lo2, hi2, b] of owned.slice(i + 1))
+      if (lo < hi2 && lo2 < hi && a !== b)
+        bad.push(`${a.label()} and ${b.label()} both use DSP memory ${hex8(Math.max(lo, lo2))}-${hex8(Math.min(hi, hi2))}`)
+  })
+  patched.forEach(([lo, hi, a], i) => {
+    for (const [lo2, hi2, b] of patched.slice(i + 1))
+      if (lo < hi2 && lo2 < hi) bad.push(`${a.label()} and ${b.label()} both patch DSP code at ${hex8(Math.max(lo, lo2))}`)
+    if ((profile.patchRanges ?? []).some(([start, end]) => start < hi && lo < end))
+      bad.push(`${a.label()} patches DSP code at ${hex8(lo)}, a hook the core or machines-dn2 qualifies`)
+    if (owned.some(([start, end]) => start < hi && lo < end))
+      bad.push(`${a.label()} patches DSP code at ${hex8(lo)} inside new DSP records`)
+  })
+  return bad
+}
+
 /** Static checks that need no layout. -> problems. */
 export function check(mods: Mod2[], image: Uint8Array): string[] {
   const spans: Span<AnyMod>[] = []
@@ -383,7 +415,9 @@ export function check(mods: Mod2[], image: Uint8Array): string[] {
       if (m.needsCore && cmpVersions(cores[0].version, m.needsCore) < 0)
         bad.push(`${m.label()} needs core ${m.needsCore} or newer, and this build has core ${cores[0].version}`)
   }
-  const sharcMods = mods.filter(m => m.sharc && !m.sections.has('.boot'))
+  const blocksMods = mods.filter(m => m.sharc?.blocks)
+  const sharcMods = mods.filter(m => m.sharc && !m.sections.has('.boot') && !m.sharc.blocks)
+  bad.push(...blocksChecks(blocksMods, mods))
   if (sharcMods.length > 1 && sharcMods.map(m => m.sharc!.machineKind).sort().join(',') !== 'filter,voice')
     bad.push('SHARC mods may combine only one DN2 voice and one DN2 filter')
   for (const kind of ['voice', 'filter'] as const) {
@@ -564,6 +598,7 @@ export type Layout = {
   reserve?: { units: number; end: number }   // a core sized to the mods: the pages it takes, and where they end
   dsp?: Record<string, DspLayout>              // words: P addresses of each payload's area
   sharc?: { decoded: number; decoded_sha256: string; stored: number; stored_sha256: string;
+    blocks?: { id: string; spans: [number, number][]; patches: number }[];
     mods?: { id: string; owner: [number, number]; hook: number }[];
     owner?: [number, number]; app?: string; core?: [number, number]; hook?: number }
 }
@@ -607,8 +642,17 @@ export function link(mods: Mod2[], image: Uint8Array, lock: store.Lock | null = 
     if (sharcStream === null) throw new ModError('SHARC mod needs the stock section-7 stream')
     const allLoads: [number, Uint8Array][] = [], allFills: [number, number, number][] = []
     const allPatches: [number, Uint8Array, Uint8Array][] = []
+    const blockLoads: [number, Uint8Array][] = [], blockFills: [number, number, number][] = []
+    const stockPatches: [number, Uint8Array, Uint8Array][] = []
+    let owned: [number, number][] = []
     for (const mod of sharcMods) {
       const payload = mod.sharc!, base = payload.owner[0]
+      if (payload.blocks) {
+        blockLoads.push(...payload.blocks.loads); blockFills.push(...payload.blocks.fills)
+        stockPatches.push(...payload.blocks.patches)
+        owned = [...rel.sharc!.blocksRanges!]
+        continue
+      }
       let loads: [number, Uint8Array][] = payload.segments.map(([off, , data]) => [base + off, data])
       let fills: [number, number, number][] = payload.zero.map(([off, count]) => [base + off, count, 0])
       let patches: [number, Uint8Array, Uint8Array][] = []
@@ -643,10 +687,14 @@ export function link(mods: Mod2[], image: Uint8Array, lock: store.Lock | null = 
       }
       allLoads.push(...loads); allFills.push(...fills); allPatches.push(...patches)
     }
+    allLoads.push(...blockLoads); allFills.push(...blockFills)
+    let storedMax = rel.sharc!.storedMax, decodedMax: number | null = null
+    const raise = rel.sharc!.uploadRaise
+    if (raise && mods.some(m => m.names.includes(raise[0]))) [storedMax, decodedMax] = [raise[1], raise[2]]
     dspStream = sharcRecords.insert(sharcStream, rel.sharc!,
-      allLoads, allFills, allPatches)
+      allLoads, allFills, allPatches, stockPatches, owned, decodedMax)
     dspStored = syx.packMain(dspStream)
-    if (dspStored.length > rel.sharc!.storedMax) throw new ModError('SHARC stored section exceeds the profile limit')
+    if (dspStored.length > storedMax) throw new ModError('SHARC stored section exceeds the profile limit')
   }
   const tables = new Map<string, [Mod2, number]>()
   for (const m of order) for (const [c, e] of m.collections) tables.set(c, [m, e])
@@ -987,13 +1035,17 @@ export function link(mods: Mod2[], image: Uint8Array, lock: store.Lock | null = 
   if (sharcMods.length) {
     layout.sharc = { decoded: dspStream!.length, decoded_sha256: sha(dspStream!),
       stored: dspStored!.length, stored_sha256: sha(dspStored!) }
-    if (sharcMods[0].sharc!.machineKind) {
-      layout.sharc.mods = sharcMods.map(m => ({ id: m.id, owner: m.sharc!.owner,
+    const blocks = sharcMods.filter(m => m.sharc!.blocks), others = sharcMods.filter(m => !m.sharc!.blocks)
+    if (blocks.length)
+      layout.sharc.blocks = blocks.map(m => ({ id: m.id, spans: m.sharc!.blocks!.spans,
+        patches: m.sharc!.blocks!.patches.length }))
+    if (others.length && others[0].sharc!.machineKind) {
+      layout.sharc.mods = others.map(m => ({ id: m.id, owner: m.sharc!.owner,
         hook: rel.sharc![`${m.sharc!.machineKind!}Hook`]![0] }))
-    } else {
-      layout.sharc.owner = sharcMods[0].sharc!.owner
-      layout.sharc.app = sharcMods[0].id
-      if (sharcMods[0].sharc!.entries !== null) {
+    } else if (others.length) {
+      layout.sharc.owner = others[0].sharc!.owner
+      layout.sharc.app = others[0].id
+      if (others[0].sharc!.entries !== null) {
         layout.sharc.core = core.sharc!.owner
         layout.sharc.hook = rel.sharc!.hook![0]
       }

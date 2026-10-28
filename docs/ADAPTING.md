@@ -286,6 +286,12 @@ instructions do, what they write, or that they meet the audio deadline.
 [SHARC-DN2.md](SHARC-DN2.md) has what the emulator and a unit showed for
 the sine variants, and the limits that remain.
 
+**A bigger DSP mod** (several blocks of code and data, its own hooks in
+stock DSP code) is a [blocks payload](FORMAT.md#digitone-ii-sharc-blocks)
+instead: you name every address yourself, inside the profile's blocks
+ranges, and every stock instruction you replace with its stock bytes. When
+the section passes 1 MiB decoded, add `dsp-upload-dn2` to the build.
+
 ### The hook bus on the Octatrack (core-ot 0.2)
 
 The Octatrack's firmware is not the Digitakt's, so its events carry what
@@ -3202,6 +3208,12 @@ Some differences from an octabam build, by design:
 | `SHARC voice stack exceeds the profile limit` | the callback declares more than 128 stack bytes | reduce its stack use and declaration, then qualify the real workload |
 | `SHARC filter stack exceeds the profile limit` | the callback declares more than 20 stack bytes | reduce its stack use and declaration, then qualify the real workload |
 | `DN2 filter G needs a label of 1..5 printable ASCII characters and a default of 0..127` | a filter descriptor's `g` has an empty, too long or non-printable label, or a default above 127 | give G a label of one to five printable ASCII characters and a default of 0..127, or leave `g` out ([filter contract](MACHINES-DN2-FILTER.md)) |
+| `both use DSP memory` | two SHARC mods load or fill the same DSP bytes, or a blocks mod uses another mod's owner | move one mod's blocks; leave the 32 KiB at 0x20090000 to the master, synth and filter mods when you combine with them |
+| `both patch DSP code` | two blocks mods replace the same stock DSP bytes | combine the two hooks into one mod, or hook another instruction |
+| `a hook the core or machines-dn2 qualifies` | a blocks patch touches one of the profile's qualified hook instructions | hook a neighbouring instruction instead |
+| `inside new DSP records` | a blocks patch targets bytes another mod loads | patch your own blocks in their `loads`, not as a patch |
+| `SHARC blocks load or fill is outside the profile blocks ranges` | a load or fill is outside L2 0x20088400-0x200C0000 and the DDR ranges | move it into a [blocks range](FORMAT.md#digitone-ii-sharc-blocks) |
+| `SHARC decoded stream exceeds the profile limit` | the section 7 the build writes is over 1 MiB decoded | shrink the blocks, or add `dsp-upload-dn2` (1.5 MiB) |
 | `SHARC payload has a gap or overlap in its owner` | the segments and zero ranges do not cover the mod's owner exactly once | add a `zero` range for the bytes you do not use; fix overlapping offsets |
 | `SHARC mod code needs its profiled NOP read-ahead guard` | a code segment does not end in 64 bytes of NOPs (`0100` repeated) | pad the end of each code segment |
 | `SHARC entry is in the instruction read-ahead guard` / `SHARC entry is not in owned code` | a callback offset is in the guard, outside the code, or odd | link the callbacks inside a code segment, before its guard |

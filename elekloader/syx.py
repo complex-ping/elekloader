@@ -338,15 +338,16 @@ def verify(out, stock, want_main, dev, version=None, *, want_sharc=None):
         s7 = o.stored[dsp_sid]
         if classify(s7) != 'packed':
             raise SyxError('the SHARC section is not a packed stream with a valid byte sum')
-        if len(s7) > rel.sharc['stored_max']:
+        from . import sharc
+        stored_max, decoded_max = sharc.limits(rel.sharc, want_main, dev.main_load)
+        if len(s7) > stored_max:
             raise SyxError('the SHARC stored section exceeds the profile limit')
         dsp = elz.depack_section(s7)
         if dsp != bytes(want_sharc):
             raise SyxError('the SHARC section does not depack to the patched stream')
-        from . import sharc
         from .elemod import ModError
         try:
-            sharc.parse(dsp, rel.sharc)
+            sharc.parse(dsp, dict(rel.sharc, decoded_max=decoded_max))
         except ModError as e:
             raise SyxError(str(e)) from e
     if gap <= 0:

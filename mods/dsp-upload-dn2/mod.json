@@ -1,0 +1,17 @@
+{
+ "id": "dsp-upload-dn2",
+ "version": "0.1",
+ "license": "GPL-2.0-or-later",
+ "title": "DN2 DSP upload 1.5 MiB",
+ "description": "Raises the main OS's DSP upload buffers and size checks from 1 MiB to 1.5 MiB, so a SHARC blocks mod's section 7 may decode to 1.5 MiB - 1.",
+ "device": "digitone-mk2",
+ "os": "1.12",
+ "sites": [
+  {"addr": "0x400cf6b0", "stock": "2f3c00100000", "op": "bytes", "new": "2f3c00180000", "kind": "code"},
+  {"addr": "0x400cf6da", "stock": "2f3c00100000", "op": "bytes", "new": "2f3c00180000", "kind": "code"},
+  {"addr": "0x400cf710", "stock": "0c8000100000", "op": "bytes", "new": "0c8000180000", "kind": "code"},
+  {"addr": "0x400cf748", "stock": "0c8200100000", "op": "bytes", "new": "0c8200180000", "kind": "code"}
+ ],
+ "resources": {"names": ["dn2-dsp-upload-1536k"]},
+ "requires": ["core"]
+}

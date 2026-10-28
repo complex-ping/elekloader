@@ -333,6 +333,41 @@ def _dsp_needs(m):
             | {t for t, _h, _e in m.dsp_tables.values()})
 
 
+def blocks_checks(blocks_mods, mods):
+    """Digitone II SHARC blocks mods: no two SHARC mods' new records or patches may
+    meet, and no patch may touch a qualified hook. -> [problems]."""
+    if not blocks_mods:
+        return []
+    profile = blocks_mods[0].rel.sharc
+    owned, patched, bad = [], [], []
+    for m in mods:
+        if not m.sharc:
+            continue
+        if m.sharc.get('blocks'):
+            owned += [(lo, hi, m) for lo, hi in m.sharc['spans']]
+            for target, old, _new in m.sharc['patches']:
+                lo, hi = sharc.byte_span(profile, target, len(old), check_protected=False)
+                patched.append((lo, hi, m))
+        elif m.sharc.get('owner'):
+            lo, hi = m.sharc['owner']
+            owned.append((lo, hi, m))
+    for i, (lo, hi, a) in enumerate(owned):
+        for lo2, hi2, b in owned[i + 1:]:
+            if lo < hi2 and lo2 < hi and a is not b:
+                bad.append('%s and %s both use DSP memory 0x%08x-0x%08x'
+                           % (a.label(), b.label(), max(lo, lo2), min(hi, hi2)))
+    for i, (lo, hi, a) in enumerate(patched):
+        for lo2, hi2, b in patched[i + 1:]:
+            if lo < hi2 and lo2 < hi:
+                bad.append('%s and %s both patch DSP code at 0x%08x' % (a.label(), b.label(), max(lo, lo2)))
+        if any(start < hi and lo < end for start, end in profile.get('patch_ranges', ())):
+            bad.append('%s patches DSP code at 0x%08x, a hook the core or machines-dn2 qualifies'
+                       % (a.label(), lo))
+        if any(start < hi and lo < end for start, end, _m in owned):
+            bad.append('%s patches DSP code at 0x%08x inside new DSP records' % (a.label(), lo))
+    return bad
+
+
 def check(mods, image):
     """Static checks that need no layout. -> [problems]."""
     spans = []
@@ -370,7 +405,9 @@ def check(mods, image):
             if m.needs_core and version_key(cores[0].version) < version_key(m.needs_core):
                 bad.append('%s needs core %s or newer, and this build has core %s'
                            % (m.label(), m.needs_core, cores[0].version))
-    sharc_mods = [m for m in mods if m.sharc and '.boot' not in m.sections]
+    blocks_mods = [m for m in mods if m.sharc and m.sharc.get('blocks')]
+    sharc_mods = [m for m in mods if m.sharc and '.boot' not in m.sections and not m.sharc.get('blocks')]
+    bad += blocks_checks(blocks_mods, mods)
     if len(sharc_mods) > 1 and (len(sharc_mods) != 2 or
             {m.sharc.get('machine_kind') for m in sharc_mods} != {'voice', 'filter'}):
         bad.append('SHARC mods may combine only one DN2 voice and one DN2 filter')
@@ -593,9 +630,16 @@ def link(mods, image, lock=None, *, sharc_stream=None):
     if sharc_mods:
         if sharc_stream is None:
             raise ModError('SHARC mod needs the stock section-7 stream')
-        loads, fills, patches = [], [], []
+        loads, fills, patches, stock_patches, owned = [], [], [], [], []
+        block_loads, block_fills = [], []          # after the others' records, in mod order
         for mod in sharc_mods:
             payload = mod.sharc
+            if payload.get('blocks'):
+                block_loads += payload['loads']
+                block_fills += payload['fills']
+                stock_patches += payload['patches']
+                owned = list(rel.sharc['blocks_ranges'])
+                continue
             base = payload['owner'][0]
             loads += [(base + off, data) for off, _kind, data in payload['segments']]
             fills += [(base + off, count, 0) for off, count in payload['zero']]
@@ -629,10 +673,16 @@ def link(mods, image, lock=None, *, sharc_stream=None):
                 fills = [(core_base + off, count, 0) for off, count in bridge['zero']] + fills
                 site, old, new = rel.sharc['hook']
                 patches.append((site, bytes.fromhex(old), bytes.fromhex(new)))
-        dsp_stream = sharc.insert(sharc_stream, rel.sharc,
-                                  loads=loads, fills=fills, patches=patches)
+        loads += block_loads
+        fills += block_fills
+        stored_max, decoded_max = rel.sharc['stored_max'], None
+        raise_ = rel.sharc.get('upload_raise')
+        if raise_ and any(raise_[0] in m.names for m in mods):
+            stored_max, decoded_max = raise_[1], raise_[2]
+        dsp_stream = sharc.insert(sharc_stream, rel.sharc, loads=loads, fills=fills, patches=patches,
+                                  stock_patches=stock_patches, owned=owned, decoded_max=decoded_max)
         dsp_stored = syx.pack_main(dsp_stream)
-        if len(dsp_stored) > rel.sharc['stored_max']:
+        if len(dsp_stored) > stored_max:
             raise ModError('SHARC stored section exceeds the profile limit')
     tables = {c: (m, e) for m in order for c, e in m.collections.items()}
 
@@ -943,12 +993,18 @@ def link(mods, image, lock=None, *, sharc_stream=None):
     if sharc_mods:
         info = out.layout['sharc'] = {'decoded': len(dsp_stream), 'decoded_sha256': sha(dsp_stream),
                                       'stored': len(dsp_stored), 'stored_sha256': sha(dsp_stored)}
-        if sharc_mods[0].sharc.get('machine_kind'):
+        blocks = [m for m in sharc_mods if m.sharc.get('blocks')]
+        others = [m for m in sharc_mods if not m.sharc.get('blocks')]
+        if blocks:
+            info['blocks'] = [{'id': m.id, 'spans': [list(x) for x in m.sharc['spans']],
+                               'patches': len(m.sharc['patches'])} for m in blocks]
+        if others and others[0].sharc.get('machine_kind'):
             info['mods'] = [{'id': m.id, 'owner': list(m.sharc['owner']),
                              'hook': rel.sharc[m.sharc['machine_kind'] + '_hook'][0]}
-                            for m in sharc_mods]
-        else:
-            info.update(owner=list(payload['owner']), app=sharc_mods[0].id)
+                            for m in others]
+        elif others:
+            payload = others[0].sharc
+            info.update(owner=list(payload['owner']), app=others[0].id)
             if payload['entries'] is not None:
                 info.update(core=list(core.sharc['owner']), hook=rel.sharc['hook'][0])
     out.store, out.store_notes = new_lock, store_notes
