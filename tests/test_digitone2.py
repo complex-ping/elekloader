@@ -312,8 +312,27 @@ CORE_SITES = ((0x40000538, '4eb9400019b0'), (0x4002e464, '4eb94011d5d4'),
               (0x40000568, '4eb940186fa2'), (0x400c257c, '202f00040c8000000141'),
               (0x400c25d8, '7224202f0004'), (0x400614e2, '720170052f012d40ffd8203c401e0464'),
               (0x4005cc0e, '72012e82203c401e03c02f012f00'), (0x4003717c, '7064b0826d18'),
-              (0x40037bd0, '7064b0826d72'))
+              (0x40037bd0, '7064b0826d72'),
+              # 0.4: p-locks: the recorder, reader, remover, the index byte guards, the pastes, trig
+              # copy and paste, pattern save and load, the lock-list builder and the note path
+              (0x4003ceee, '4e56ffd448d70cfc'),
+              (0x4003cdba, '4feffff048d7041c'),
+              (0x4003d00e, '4fefffe048d70cfc'),
+              (0x4003d266, 'd08d2040d1c750c0114050a0'),
+              (0x4003d5a2, '22680004225145f14800d5c2712a50a0'),
+              (0x4003d5f4, 'd3c4d3c22400ef8a134050a0'),
+              (0x40052634, '7f310801223c0001799c'),
+              (0x40053246, '7b310801223c0001799c'),
+              (0x4005389c, '7b338801223c0001799c'),
+              (0x40052948, '79338801223c0001799c'),
+              (0x40053f48, '2f122f2b003c'),
+              (0x40055440, '71ab000449faf24a'),
+              (0x400de8c2, '7810b883660622341c00600422331c00108111420001'),
+              (0x400de6f8, '786a7380b881655a7383183c000fb8816550'),
+              (0x400d874c, '4fefffe87065'),
+              (0x40026c20, '206effdc20280054'))
 PARAM_SITES = {a: len(b) // 2 for a, b in CORE_SITES[12:]}
+PARAM_SITES[0x400d8b14] = 2             # the builder for every note: beq -> nop
 STOCK_ROWS = 0x401f83a4                 # the parameter table core 0.4 moves into core_rows
 
 
@@ -402,7 +421,23 @@ CORE_HOOKS = {0x40000538: ('4eb9', 'boot'), 0x4002e464: ('4eb9', 'core_tick'),
               0x40000568: ('4eb9', 'core_params_start'), 0x400c257c: ('4ef9', 'core_value_class_stub'),
               0x400c25d8: ('4ef9', 'core_page_lookup'), 0x400614e2: ('4ef9', 'core_fx_pages_stub'),
               0x4005cc0e: ('4ef9', 'core_fx_lock_stub'), 0x4003717c: ('4ef9', 'core_get_stub'),
-              0x40037bd0: ('4ef9', 'core_set_stub')}
+              0x40037bd0: ('4ef9', 'core_set_stub'),
+              0x4003ceee: ('4ef9', 'core_rec_stub'),
+              0x4003cdba: ('4ef9', 'core_read_stub'),
+              0x4003d00e: ('4ef9', 'core_remove_stub'),
+              0x4003d266: ('4eb9', 'core_clear_index'),
+              0x4003d5a2: ('4eb9', 'core_swap_index_read'),
+              0x4003d5f4: ('4eb9', 'core_swap_index_write'),
+              0x40052634: ('4eb9', 'core_paste_a'),
+              0x40053246: ('4eb9', 'core_paste_b'),
+              0x4005389c: ('4eb9', 'core_paste_c'),
+              0x40052948: ('4eb9', 'core_paste_d'),
+              0x40053f48: ('4eb9', 'core_trig_copy'),
+              0x40055440: ('4eb9', 'core_trig_paste'),
+              0x400de8c2: ('4ef9', 'core_save_rec'),
+              0x400de6f8: ('4ef9', 'core_load_rec'),
+              0x400d874c: ('4ef9', 'core_build_stub'),
+              0x40026c20: ('4eb9', 'core_note_stub')}
 
 
 def assert_hooked(new, man):
@@ -429,6 +464,8 @@ def test_core_builds_links_and_verifies():
     changed = [i for i in range(len(img)) if new[i] != img[i]]
     sites = [(s - DEV.main_load, len(stock) // 2) for s, stock in CORE_SITES]
     sites += [(s - DEV.main_load, width) for s, width in table_sites(img).items()]
+    sites.append((0x400d8b14 - DEV.main_load, 2))
+    assert at(new, 0x400d8b14, 2) == '4e71' and at(img, 0x400d8b14, 2) == '6730'
     assert changed and all(any(s <= i < s + width for s, width in sites) for i in changed)
     assert_hooked(new, man)
     rows = man['_map']['core_rows']
@@ -456,7 +493,7 @@ def test_the_example_links_with_core():
         st, img = stock()
         new = formats.main_image(formats.parse(outputs['syx'], DEV), DEV)
         changed = {i for i in range(len(img)) if new[i] != img[i]}
-        allowed = [(s, len(stock) // 2) for s, stock in CORE_SITES] + list(table_sites(img).items())
+        allowed = [(s, len(stock) // 2) for s, stock in CORE_SITES] + list(table_sites(img).items()) + [(0x400d8b14, 2)]
         assert changed <= {s - DEV.main_load + k for s, n in allowed for k in range(n)}
         assert_hooked(new, man)
         # without core, or with two, or on core's site, or with .fast code: refused

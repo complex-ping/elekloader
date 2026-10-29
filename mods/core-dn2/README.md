@@ -47,6 +47,22 @@ sites:
 | 0x4003717c | the value getter's bound (slot <= 100) | `core_get_stub`: slots 101..127 read the parameter's field |
 | 0x40037bd0 | the value setter's bound | `core_set_stub`: slots 101..127 write it |
 
+P-locks of mod parameters (`locks.c`, `locks.s`) are records of the
+pattern's lock table like stock's, `{code, track}`, without the index byte
+stock keeps for slots 0..100, and with the value itself (not 8.8). Saved, a
+record is `{code, track | 0x20}`: a stock OS's load skips it. Core takes:
+
+| site | stock | core |
+|---|---|---|
+| 0x4003ceee, 0x4003cdba, 0x4003d00e | the lock recorder, reader and remover | codes 101..127 to `core_lock_record`, `_read`, `_remove` |
+| 0x4003d266 | the step clear's index byte of a freed record | skipped for a code |
+| 0x4003d5a2, 0x4003d5f4 | the track swap's record copy: its index byte look and write | skipped for a code |
+| 0x40052634, 0x40053246, 0x4005389c, 0x40052948 | the page and track pastes' record match | a code's record pasted by core, passed over by stock |
+| 0x40053f48, 0x40055440 | trig copy and paste | the step's codes kept by clipboard entry |
+| 0x400de8c2, 0x400de6f8 | pattern save (slot -> id) and load (id -> slot) | `{code, track | 0x20}` |
+| 0x400d874c, 0x400d8b14 | the lock-list builder, and the test that skips it on a step without stock locks | the step's codes into the list's last 40 bytes; run for every note |
+| 0x40026c20 | the note path's lock step (a voice reset to its sound) | the voice's and its track's playing codes |
+
 `core_store_set` also writes the field's sound into its stored copy in the
 project image the OS keeps in RAM (what SAVE PROJECT writes and a power
 cycle brings back), with the layout ID and the generation, as stock writes

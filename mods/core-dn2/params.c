@@ -98,6 +98,19 @@ static const struct core_param *param_of(unsigned slot)
     return slot >= FIRST_CODE && slot < FIRST_CODE + CODES ? by_code[slot - FIRST_CODE] : 0;
 }
 
+/* for locks.c */
+const struct core_param *core_param_of(unsigned code)
+{
+    return param_of(code);
+}
+
+unsigned core_param_clamp(const struct core_param *p, unsigned value)
+{
+    return value < p->min ? p->min : value > p->max ? p->max : value;
+}
+
+void core_lock_end(void *sound, unsigned code);
+
 unsigned core_param_code(unsigned field)
 {
     const unsigned *p;
@@ -229,7 +242,7 @@ void core_param_put(unsigned field, void *sound, unsigned value)
     const struct core_param *p = param_of(core_param_code(field));
     if (!p)
         return;
-    value = value < p->min ? p->min : value > p->max ? p->max : value;
+    value = core_param_clamp(p, value);
     core_store_set(field, sound, 0, (value - p->def) & ((1u << STORE_BITS(field)) - 1));
 }
 
@@ -240,10 +253,12 @@ int core_param_get(void *sound, unsigned slot)
     return p ? (int)(decode(p, core_store_get(p->field, sound, 0)) << 8) : 0;
 }
 
-/* the setter's write (8.8) of a slot 101..127 */
+/* the setter's write (8.8) of a slot 101..127: it also ends the track's playing lock of it */
 void core_param_set(void *sound, unsigned slot, int value)
 {
     const struct core_param *p = param_of(slot);
-    if (p)
+    if (p) {
         core_param_put(p->field, sound, value < 0 ? 0 : (unsigned)value >> 8);
+        core_lock_end(sound, slot);
+    }
 }

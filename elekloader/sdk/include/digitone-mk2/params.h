@@ -20,7 +20,9 @@
  *
  * Its knob then turns, shows and keeps its value like a stock one: the
  * value lives in the field, saved with the sound (read it with
- * core_param_value). The pages come after the [FX] key's own, in order.
+ * core_param_value). It takes p-locks, which play, copy, paste and save
+ * with the pattern; core_param_track gives the value a track plays now.
+ * The pages come after the [FX] key's own, in order.
  */
 #ifndef ELEKLOADER_DN2_PARAMS_H
 #define ELEKLOADER_DN2_PARAMS_H
@@ -48,5 +50,14 @@ unsigned core_param_code(unsigned field);
  * then reads the default. */
 unsigned core_param_value(unsigned field, void *sound);
 void core_param_put(unsigned field, void *sound, unsigned value);
+
+/* the value track t (0..15) plays now: its playing p-lock (from its last
+ * trig, until a knob turn or its next trig), else its sound's. Any context. */
+unsigned core_param_track(unsigned field, int track);
+/* the same for a voice (0..15): the lock of the trig it plays, else the sound
+ * of the track it plays for (0 before its first note) */
+unsigned core_param_voice(unsigned field, int voice);
+/* the track a voice last played for, or -1 */
+int core_voice_track(int voice);
 
 #endif

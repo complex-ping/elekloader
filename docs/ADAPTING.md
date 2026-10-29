@@ -363,6 +363,8 @@ const struct core_page my_page = {"MINE", {STORE(my_depth), 0, 0, 0, 0, 0, 0, 0}
 | the value | in the field, as the value less the default (mod the field's width), so a sound that never had the field reads the default; `core_param_value(field, sound)` and `core_param_put` read and write it |
 | the pages | up to 8, in `core_pages` order, after [FX]'s own; the header counts them (FX 1/n) |
 | what works | turning the knob, its picture and value, the sound's copy, save and load (mod storage) |
+| p-locks | recorded, shown and cleared as stock's; trig, page and track copy and paste, undo, the track swap; saved with the pattern as records a stock OS skips |
+| the value playing | `core_param_track(field, track)`: the track's playing lock (from its last trig, until a knob turn or its next trig), else its sound's; `core_param_voice(field, voice)` the same for a voice |
 
 The [param check](../examples/param-check-dn2) example has two knobs on one
 page.
