@@ -8,6 +8,7 @@ variables; a test whose input is missing is skipped, not passed:
   ELEKLOADER_DN2_ZIP   Digitone_II_OS1.12_dist.zip (Elektron's download)
   ELEKLOADER_DN2_CORE_01  historical core-dn2 0.1 .elemod (compatibility)
   ELEKLOADER_DN2_DIGIHEALTH  existing DigiHealth .elemod (compatibility)
+  ELEKLOADER_CF_CALL   DigiKit's cf_call (runs a build's routines)
 """
 import dataclasses
 import hashlib
@@ -305,7 +306,31 @@ CORE_SITES = ((0x40000538, '4eb9400019b0'), (0x4002e464, '4eb94011d5d4'),
               (0x4002f256, '4eb94002c55c'), (0x4009ff88, '205248780002'),
               (0x400987a2, '4cef7c7c0018'), (0x4011fc8c, '4fefffbc48d77cfc'),
               (0x4011f8c4, '52b9466768b0'), (0x4012197a, '47f940207f9e'),
-              (0x400dd80a, '4fefffdc48d77c3c'), (0x400dd34e, '4fefffe048d77c1c'))   # 0.3: the sound converters
+              (0x400dd80a, '4fefffdc48d77c3c'), (0x400dd34e, '4fefffe048d77c1c'),   # 0.3: the sound converters
+              # 0.4: main's call (the rows' copy), the value class, the page lookup, [FX]'s page
+              # lists, the value getter's and setter's bounds
+              (0x40000568, '4eb940186fa2'), (0x400c257c, '202f00040c8000000141'),
+              (0x400c25d8, '7224202f0004'), (0x400614e2, '720170052f012d40ffd8203c401e0464'),
+              (0x4005cc0e, '72012e82203c401e03c02f012f00'), (0x4003717c, '7064b0826d18'),
+              (0x40037bd0, '7064b0826d72'))
+PARAM_SITES = {a: len(b) // 2 for a, b in CORE_SITES[12:]}
+STOCK_ROWS = 0x401f83a4                 # the parameter table core 0.4 moves into core_rows
+
+
+def table_sites(img):
+    """core 0.4's table sites, from its mod.json, each checked against the
+    image: 56 references to the stock rows (a 6-byte instruction ending in an
+    address in the first row) and 54 compares with 321 or 320 -> {address: width}."""
+    with open(os.path.join(os.path.dirname(HERE), 'mods', 'core-dn2', 'mod.json')) as fh:
+        sites = json.load(fh)['sites']
+    refs = [s for s in sites if s.get('target') == 'core_rows']
+    bounds = [s for s in sites if s['op'] == 'bytes' and len(s['stock']) == 12]
+    assert len(refs) == 56 and len(bounds) == 54
+    for s in refs:
+        assert at(img, int(s['addr'], 16), 6) == s['stock'] and 0 <= int(s['stock'][4:], 16) - STOCK_ROWS < 60
+    for s in bounds:
+        assert at(img, int(s['addr'], 16), 6) == s['stock'] and int(s['stock'][4:], 16) in (321, 320)
+    return {int(s['addr'], 16): 6 for s in refs + bounds}
 
 
 def at(img, addr, n):
@@ -373,7 +398,11 @@ CORE_HOOKS = {0x40000538: ('4eb9', 'boot'), 0x4002e464: ('4eb9', 'core_tick'),
               0x4011fc8c: ('4ef9', 'core_panel_buttons'),
               0x4011f8c4: ('4eb9', 'core_panel_clock'),
               0x4012197a: ('4eb9', 'core_sysex'),
-              0x400dd80a: ('4ef9', 'st_sound_save'), 0x400dd34e: ('4ef9', 'st_sound_load')}
+              0x400dd80a: ('4ef9', 'st_sound_save'), 0x400dd34e: ('4ef9', 'st_sound_load'),
+              0x40000568: ('4eb9', 'core_params_start'), 0x400c257c: ('4ef9', 'core_value_class_stub'),
+              0x400c25d8: ('4ef9', 'core_page_lookup'), 0x400614e2: ('4ef9', 'core_fx_pages_stub'),
+              0x4005cc0e: ('4ef9', 'core_fx_lock_stub'), 0x4003717c: ('4ef9', 'core_get_stub'),
+              0x40037bd0: ('4ef9', 'core_set_stub')}
 
 
 def assert_hooked(new, man):
@@ -399,8 +428,14 @@ def test_core_builds_links_and_verifies():
     new = formats.main_image(o, DEV)
     changed = [i for i in range(len(img)) if new[i] != img[i]]
     sites = [(s - DEV.main_load, len(stock) // 2) for s, stock in CORE_SITES]
+    sites += [(s - DEV.main_load, width) for s, width in table_sites(img).items()]
     assert changed and all(any(s <= i < s + width for s, width in sites) for i in changed)
     assert_hooked(new, man)
+    rows = man['_map']['core_rows']
+    for a in table_sites(img):                  # a reference now names the same field of core_rows
+        old = int(at(img, a, 6)[4:], 16)
+        if 0 <= old - STOCK_ROWS < 60:
+            assert int(at(new, a, 6)[4:], 16) == rows + old - STOCK_ROWS, hex(a)
     lay = man['link']['layout']
     assert DEV.ddr[0] == lay['ddr'][0] < lay['bss'][1] <= DEV.ddr[1]
     assert lay['boot'][0] == DEV.image_end(REL) and len(new) > len(img)
@@ -421,7 +456,8 @@ def test_the_example_links_with_core():
         st, img = stock()
         new = formats.main_image(formats.parse(outputs['syx'], DEV), DEV)
         changed = {i for i in range(len(img)) if new[i] != img[i]}
-        assert changed <= {s - DEV.main_load + k for s, stock in CORE_SITES for k in range(len(stock) // 2)}
+        allowed = [(s, len(stock) // 2) for s, stock in CORE_SITES] + list(table_sites(img).items())
+        assert changed <= {s - DEV.main_load + k for s, n in allowed for k in range(n)}
         assert_hooked(new, man)
         # without core, or with two, or on core's site, or with .fast code: refused
         expect(lambda: patch.build(SYX, [hello], version='HM01', log=lambda *a: None), 'core')
@@ -489,25 +525,28 @@ def test_hooks_check_links_with_core():
 
 
 def test_core_preserves_the_0_1_control_contract():
-    """0.2 adds its dormant SHARC bridge and 0.3 mod storage; every 0.1
-    control-side site, table, symbol and reservation stays as it was."""
+    """0.2 adds its dormant SHARC bridge, 0.3 mod storage and 0.4 mod
+    parameters; every 0.1 control-side site, table, symbol and reservation
+    stays as it was."""
     old = json.loads(need(CORE_01, 'ELEKLOADER_DN2_CORE_01'))
     with tempfile.TemporaryDirectory() as tmp:
         with open(built(os.path.join('mods', 'core-dn2'), tmp)) as fh:
             new = json.load(fh)
-    assert old['version'] == '0.1' and new['version'] == '0.3'
+    assert old['version'] == '0.1' and new['version'] == '0.4'
     for key in ('target', 'contribute', 'copied', 'weak'):
         assert new[key] == old[key], key
-    assert set(new['exports']) - set(old['exports']) == {'core_store_get', 'core_store_set', 'st_sound_save',
-                                                         'st_sound_load', 'st_sound_save_body', 'st_sound_load_body'}
+    assert set(new['exports']) - set(old['exports']) >= {'core_store_get', 'core_store_set', 'core_rows',
+                                                         'core_param_code', 'core_param_value', 'core_param_put'}
     assert set(old['exports']) <= set(new['exports'])
     assert all(site in new['sites'] for site in old['sites'])
-    assert {s['addr'] for s in new['sites']} - {s['addr'] for s in old['sites']} == {'0x400dd80a', '0x400dd34e'}
+    _st, img = stock()
+    added = {int(s['addr'], 16) for s in new['sites']} - {int(s['addr'], 16) for s in old['sites']}
+    assert added == set(STORE_SITES) | set(PARAM_SITES) | set(table_sites(img))
     assert all(new['collections'][c] == e for c, e in old['collections'].items())
-    assert set(new['collections']) - set(old['collections']) == {'core_store_ids'}
+    assert set(new['collections']) - set(old['collections']) == {'core_store_ids', 'core_params', 'core_pages',
+                                                                 'core_lock_codes'}
     assert all(new['symbols'].get(k) == v for k, v in old['symbols'].items())
     assert set(old['imports']) <= set(new['imports'])
-    _st, img = stock()
 
     def run_bytes(doc):                         # .run's parts, the stock runs read from the image
         return b''.join(bytes.fromhex(p[1]) if p[0] == 'hex' else
@@ -522,8 +561,9 @@ STORE_SITES = {0x400dd80a: 8, 0x400dd34e: 8}       # core 0.3's converter hooks
 
 def check_control_firmware_kept(old, new, mods):
     """Keep the version label equal so only core selection can affect bytes:
-    the main OS differs only at 0.3's storage sites and in the appended
-    image (core's own code grew), and the DSP section stays stock."""
+    the main OS differs only at 0.3's storage sites, 0.4's parameter sites
+    and in the appended image (core's own code grew), and the DSP section
+    stays stock."""
     images = []
     for core in (old, new):
         output, _man = patch.build(SYX, [core] + list(mods), version='CP02', log=lambda *a: None)
@@ -531,7 +571,8 @@ def check_control_firmware_kept(old, new, mods):
         assert parsed.stored[7] == stock()[0].stored[7]
         images.append(formats.main_image(parsed, DEV))
     _st, img = stock()
-    sites = {a - DEV.main_load + k for a, n in STORE_SITES.items() for k in range(n)}
+    added = {**STORE_SITES, **PARAM_SITES, **table_sites(img)}
+    sites = {a - DEV.main_load + k for a, n in added.items() for k in range(n)}
     changed = {i for i in range(len(img)) if images[0][i] != images[1][i]}
     assert changed <= sites
 
@@ -583,6 +624,73 @@ def test_store_check_links_with_core_0_3():
         if CORE_01:
             expect(lambda: patch.build(SYX, [CORE_01, sc], version='SC03', log=lambda *a: None),
                    'needs core 0.3')
+
+
+def test_param_check_links_with_core_0_4_and_its_knobs_read_and_write():
+    """examples/param-check-dn2: two lockable fields get codes 101 and 102,
+    rows 362 and 363 and a page 37 after [FX]'s own. With cf_call, the stock
+    getter and setter, the page lookup and the value class answer them through
+    core: the default, a write kept in the field, the range's clamp, and a
+    stock slot read as before."""
+    import struct
+    import subprocess
+    with tempfile.TemporaryDirectory() as tmp:
+        core = built(os.path.join('mods', 'core-dn2'), tmp)
+        pc = built(os.path.join('examples', 'param-check-dn2'), tmp)
+        outputs, man = patch.build(SYX, [core, pc], version='PC04', log=lambda *a: None)
+        assert [(f['sym'], f['bits']) for f in man['store']['fields']] == [('pc_a', 7), ('pc_b', 4)]
+        assert sorted((c['sym'], c['code']) for c in man['store']['codes']) == [('pc_a', 101), ('pc_b', 102)]
+        assert man['link']['tables']['core_params']['entries'] == 2
+        assert man['link']['tables']['core_pages']['entries'] == 1
+        new = formats.main_image(formats.parse(outputs['syx'], DEV), DEV)
+        assert_hooked(new, man)
+        if CORE_01:
+            expect(lambda: patch.build(SYX, [CORE_01, pc], version='PC04', log=lambda *a: None),
+                   'needs core 0.4')
+        cf_call = os.environ.get('ELEKLOADER_CF_CALL')
+        if not cf_call:
+            raise Skip('no ELEKLOADER_CF_CALL: linked only')
+        firmware = os.path.join(tmp, 'pc.syx')
+        with open(firmware, 'wb') as fh:
+            fh.write(outputs['syx'])
+        rows = int(man['_map']['core_rows'], 0) if isinstance(man['_map']['core_rows'], str) else man['_map']['core_rows']
+        # A sound the getter and setter reach as stock's do: owner +16 -> object, whose
+        # vtable's +0x28 answers the live sound (itself). Stock slot 98 (Overdrive, row 304) = 0x1234.
+        vtable, answer, sound, owner = 0x47f3a000, 0x47f3a100, 0x47f3b000, 0x47f3c000
+        body = bytearray(0x200)
+        body[:4] = vtable.to_bytes(4, 'big')
+        body[0x14 + 2 * 98:0x16 + 2 * 98] = (0x1234).to_bytes(2, 'big')
+        pokes = [{'addr': hex(vtable + 0x28), 'hex': answer.to_bytes(4, 'big').hex()},
+                 {'addr': hex(answer), 'hex': '202f00044e75'},
+                 {'addr': hex(sound), 'hex': body.hex()},
+                 {'addr': hex(owner + 16), 'hex': sound.to_bytes(4, 'big').hex()}]
+        get, put, page, klass = 0x4003713c, 0x40037b74, 0x400c25d8, 0x400c257c
+        calls = [(get, [owner, 362]), (get, [owner, 363]), (get, [owner, 304]),
+                 (put, [owner, 362, 88 << 8, 0, 0, 0]), (get, [owner, 362]),
+                 (put, [owner, 363, 20 << 8, 0, 0, 0]), (get, [owner, 363]),
+                 (put, [owner, 363, 0, 0, 0, 0]), (get, [owner, 363]), (get, [owner, 304]),
+                 (page, [37]), (page, [16]), (page, [38]),
+                 (klass, [362]), (klass, [304]), (klass, [364]), (klass, [0])]
+        request = os.path.join(tmp, 'request.json')
+        with open(request, 'w') as fh:
+            json.dump({'pokes': pokes, 'calls': [
+                {'pc': hex(c), 'args': [str(a) for a in args],
+                 'reads': [{'addr': hex(rows + 60 * 362), 'len': 120}, {'addr': hex(sound + 0x180), 'len': 11}]}
+                for c, args in calls]}, fh)
+        result = subprocess.run([cf_call, firmware, request, '--base-sha', stock()[0].sha256],
+                                capture_output=True, text=True, timeout=600)
+        assert result.returncode == 0, result.stderr[-2000:]
+        out = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
+        assert len(out) == len(calls) and all(r['ok'] for r in out), out
+        d0 = [r['d'][0] for r in out]
+        assert d0[:3] == [64 << 8, 3 << 8, 0x1234]              # the defaults; a stock slot
+        assert d0[4] == 88 << 8 and d0[6] == 15 << 8 and d0[8] == 0 and d0[9] == 0x1234
+        assert d0[11] == 0x42433c00 + 44 * 16 and d0[12] == 0x42433c00 - 44   # stock's answer past the pages
+        assert d0[10] not in (0, d0[11], d0[12])
+        assert d0[13] == d0[14] and d0[15] == d0[16]          # a parameter's class is Overdrive's; an unused code's stock's
+        a, b = (struct.unpack('>6i2h3I', bytes.fromhex(out[-1]['reads'][0])[60 * i:60 * i + 40]) for i in (0, 1))
+        assert a[:5] == (15, 101, 0, 127 << 8, 64 << 8) and b[1:5] == (102, 0, 15 << 8, 3 << 8)
+        assert a[6:9] == (-1, -1, 0xffffffff) and b[6:9] == (-1, -1, 0xffffffff)   # no CC, no NRPN
 
 
 def test_sharc_examples_require_and_select_core_0_2():

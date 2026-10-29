@@ -1,0 +1,22 @@
+{
+ "id": "param-check",
+ "version": "0.1",
+ "title": "Param check",
+ "category": "Examples",
+ "license": "GPL-2.0-or-later",
+ "description": "The smallest user of core-dn2's mod parameters (0.4): two lockable sound fields as knobs A and B of a page TEST after the [FX] key's own.",
+ "device": "digitone-mk2",
+ "os": "1.12",
+ "sources": ["check.c"],
+ "storage": [
+  {"sym": "pc_a", "scope": "sound", "bits": 7, "lock": true},
+  {"sym": "pc_b", "scope": "sound", "bits": 4, "lock": true}
+ ],
+ "contribute": [
+  {"to": "core_params", "order": 50, "data": "00000000", "relocs": [[0, "abs32", "sym:pc_param_a", 0]]},
+  {"to": "core_params", "order": 51, "data": "00000000", "relocs": [[0, "abs32", "sym:pc_param_b", 0]]},
+  {"to": "core_pages", "order": 50, "data": "00000000", "relocs": [[0, "abs32", "sym:pc_page", 0]]}
+ ],
+ "resources": {"core": "0.4"},
+ "requires": ["core"]
+}

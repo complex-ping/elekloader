@@ -1,6 +1,6 @@
 # Digitone II machines
 
-Experimental, OS 1.12 only. `machines-dn2` is a companion to core-dn2 0.2.
+Experimental, OS 1.12 only. `machines-dn2` 0.2 is a companion to core-dn2 0.4.
 It puts [SHARC track synths](MACHINES-DN2-VOICE.md) in the native
 **FUNC+SYN** selector and [filters](MACHINES-DN2-FILTER.md) in its FLTR
 category, using the `mk2_*` interface in `mk2/machines.h`. A mod registers
@@ -48,11 +48,12 @@ type, except the FLTR page's knob lookups (`0x4006efcc`, `0x4006f004`),
 which read a custom filter's own descriptor, where G may be declared. The audio frame is indexed by allocated voice slot, not by track;
 qualification follows the owner map at `0x40288306 + 0x14*v` during note-on.
 A small wrapper gives the native track-type accessor the real reader without embedding a copied firmware function. SHARC synth pages add
-parameter rows after the stock table's 321: at boot, before the OS's
-initializers, the companion copies the table (`0x401f83a4`) to its RAM,
-points the table's 56 references at the copy and raises its 54 row bounds
-by 41, for 40 synth knobs and a filter's G; the value-class accessor (`0x400c257c`) gives an added row its
-template's object, and the bounds that end loops keep the stock count. The CC
+parameter rows after the stock table's 321, in core-dn2 0.4's copy of it
+(`core_rows`, ADAPTING.md, "Mod parameters (core-dn2 0.4, Digitone II)"):
+rows 321..360 are the 40 synth knobs and 361 a filter's G; core's
+value-class accessor (`0x400c257c`) gives them their templates' object (A
+Env Decay's, and MULTI-MODE's TYPE for G), and the bounds that end loops
+keep the stock count. The CC
 and NRPN lookups (`0x400dc978`, `0x400dca5a`) ask FM TONE's map for a paged
 synth, and an FM TONE row found there becomes the synth's row for its slot. The sound-load bound
 accepts IDs through 31. Unused IDs never enter the cached list.

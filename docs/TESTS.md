@@ -21,7 +21,9 @@ LOWPASS 4, identity reads keep saved IDs, and registers and the
 stack are preserved. It also boots a build with a paged SHARC synth and
 reads its pages and rows through the stock accessors, and one with a full
 40-knob synth and a filter with G, whose row must follow the synth's and
-leave the stock filters' slot 66 alone. With DigiKit
+leave the stock filters' slot 66 alone. With the same three,
+`test_digitone2.py` runs the param check's parameters through the stock
+value getter and setter, the page lookup and the value class. With DigiKit
 (`ELEKLOADER_DIGIKIT`, its `ELEKLOADER_DIGI_EMUD` and the ready inputs in
 `ELEKLOADER_DN2_EMU_READY`), `test_dn2_filter_capture.py` plays stock
 LOWPASS 4 and a custom filter side by side in the coupled emulator, with the

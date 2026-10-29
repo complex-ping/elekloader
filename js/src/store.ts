@@ -45,7 +45,7 @@ export type Code = { mod: string; sym: string; code: number }
 export type Cc = { mod: string; sym: string; cc: number }
 export type Decl = [string, string, string, number]          // mod id, sym, scope, bits
 
-type Spec = { fixed: Record<string, number>; coreFixed: [string, Record<string, number>][]; live: Record<string, number>; store: number; items: Record<string, number>; split: { track: number; pattern: number }; ccs?: number[]; lockDst?: number }
+type Spec = { fixed: Record<string, number>; coreFixed: [string, Record<string, number>][]; live: Record<string, number>; store: number; items: Record<string, number>; split: { track: number; pattern: number }; ccs?: number[]; lockDst?: number; codes?: [number, number] }
 const range = (a: number, b: number) => Array.from({ length: b - a }, (_, i) => a + i)
 const DEVICES: Record<string, Spec> = {
   'analog-rytm-mk2': {
@@ -75,10 +75,15 @@ const DEVICES: Record<string, Spec> = {
     store: 0,
     items: { track: 0, pattern: 0 },
     split: { track: 0, pattern: 0 },
+    codes: [101, 127],                          // a code is the parameter's value slot past stock's 0..100 (core-dn2 0.4)
   },
 }
 
 export const supports = (devKey: string) => Object.hasOwn(DEVICES, devKey)
+
+/** (first, last) lock code on the device. store.code_range. */
+export const codeRange = (devKey: string): [number, number] =>
+  (Object.hasOwn(DEVICES, devKey) && DEVICES[devKey].codes) || [FIRST_CODE, LAST_CODE]
 
 /** The bits of core_lfo_dst on the device, 0 where the core keeps none. store.lock_dst_bits. */
 export function lockDstBits(devKey: string): number {
@@ -248,7 +253,8 @@ export function checkLock(lock: unknown, devKey: string): asserts lock is Lock {
   }
   if (['codes', 'freed_codes', 'next_code'].some(k => Object.hasOwn(lock, k))) {
     const nc = lock.next_code
-    if (!whole(nc) || !(nc >= FIRST_CODE && nc <= LAST_CODE + 1))
+    const [first, last] = codeRange(devKey)
+    if (!whole(nc) || !(nc >= first && nc <= last + 1))
       throw new ModError(`lockfile: "next_code" ${repr(Object.hasOwn(lock, 'next_code') ? nc : null)}`)
     const seen = new Set<number>()
     for (const k of ['codes', 'freed_codes']) {
@@ -256,7 +262,7 @@ export function checkLock(lock: unknown, devKey: string): asserts lock is Lock {
       if (!Array.isArray(cs)) throw new ModError(`lockfile: "${k}" is a list`)
       for (const c of cs) {
         if (!isDict(c) || !sameKeys(c, ['mod', 'sym', 'code']) || typeof c.mod !== 'string' || typeof c.sym !== 'string'
-          || !whole(c.code) || !(c.code >= FIRST_CODE && c.code < nc) || seen.has(c.code))
+          || !whole(c.code) || !(c.code >= first && c.code < nc) || seen.has(c.code))
           throw new ModError(`lockfile: a bad entry in "${k}"`)
         seen.add(c.code)
       }
@@ -432,7 +438,8 @@ function setCodes(lock: Lock, want: Set<string>, kept: Set<string>, back: Set<st
   if (!want.size && !had.length && !hadFreed.length) return false   // a lockfile that never had a lockable field stays as it was
   const key = (c: { mod: string; sym: string }) => c.mod + '\0' + c.sym
   const codes: Code[] = [], freed: Code[] = hadFreed.map(c => ({ ...c }))
-  let nxt = lock.next_code ?? FIRST_CODE
+  const [first, last] = codeRange(lock.device)
+  let nxt = lock.next_code ?? first
   let changed = false
   for (const c of had) {
     const k = key(c)
@@ -453,7 +460,7 @@ function setCodes(lock: Lock, want: Set<string>, kept: Set<string>, back: Set<st
       c = same[same.length - 1]
       freed.splice(freed.indexOf(c), 1)
       notes.push(`${mod} ${sym}: back with lock code ${c.code}`)
-    } else if (nxt <= LAST_CODE) {
+    } else if (nxt <= last) {
       c = { mod, sym, code: nxt }
       nxt += 1
       notes.push(`${mod} ${sym}: lock code ${c.code}`)
@@ -461,7 +468,7 @@ function setCodes(lock: Lock, want: Set<string>, kept: Set<string>, back: Set<st
       const old = freed.shift()!
       c = { mod, sym, code: old.code }
       notes.push(`${mod} ${sym}: lock code ${c.code} (was ${old.mod} ${old.sym}'s)`)
-    } else throw new ModError(`the mods have more than ${LAST_CODE - FIRST_CODE + 1} lockable parameters`)
+    } else throw new ModError(`the mods have more than ${last - first + 1} lockable parameters`)
     for (const d of freed.filter(d => key(d) === k)) freed.splice(freed.indexOf(d), 1)   // a field has one code
     codes.push(c)
     changed = true

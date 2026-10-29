@@ -154,18 +154,6 @@ dn2_stock_nrpn:
     movem.l %d2-%d4,(%sp)
     jmp NRPN_CONTINUE
 
-| The value-class accessor: an added parameter code uses its template's object.
-    .globl dn2_t2
-dn2_t2:
-    SAVE
-    move.l 20(%sp),-(%sp)
-    jsr dn2_value_code
-    addq.l #4,%sp
-    move.l %d0,(%sp)
-    RESTORE
-    cmpi.l #T1_ROWS,%d0
-    jmp T2_CONTINUE
-
 | Audio mirror identity stays real; only the transmitted DSP type is mapped (dn2_dsp_type).
     .globl dn2_frame_type
 dn2_frame_type:

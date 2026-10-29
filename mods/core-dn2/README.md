@@ -29,6 +29,24 @@ replayed in `store.s`) to core's wraps:
 | 0x400dd80a | save (stored, live, a) | `st_sound_save`: stock's body, then the layout ID, the sound generation and the 11 bytes into the stored values of lock ids 4, 8 .. 32 |
 | 0x400dd34e | load (live, stored) | `st_sound_load`: stock's body, then the 11 bytes (zeros for another layout or generation), and the live value slot 0, where stock's load folds those ids, back to 0 |
 
+Core **0.4** adds mod parameters (`params.c`, `params.s`;
+[docs/ADAPTING.md](../../docs/ADAPTING.md), "Mod parameters (core-dn2 0.4,
+Digitone II)") and keeps 0.3's sites, tables and exports. It moves the
+parameter table (321 rows of 60 bytes at 0x401f83a4) into `core_rows` at
+boot: its 56 references point at the copy and its 54 row bounds take its
+389 rows (321 stock, 41 machines-dn2's, 27 mod parameters'). Seven more
+sites:
+
+| site | stock | core |
+|---|---|---|
+| 0x40000568 | the OS entry's call of main | `core_params_start`: the rows copied and the mods' built, then main |
+| 0x400c257c | the value-class accessor | `core_value_class_stub`: an added row's class is its template's |
+| 0x400c25d8 | the page lookup (ids 0..36) | `core_page_lookup`: ids 37.. are the mods' pages |
+| 0x400614e2 | [FX]'s page list ({16}) | `core_fx_pages_stub`: {16, 37, 38, ...} |
+| 0x4005cc0e | the lock indicator's copy of it | `core_fx_lock_stub`: the same list |
+| 0x4003717c | the value getter's bound (slot <= 100) | `core_get_stub`: slots 101..127 read the parameter's field |
+| 0x40037bd0 | the value setter's bound | `core_set_stub`: slots 101..127 write it |
+
 `core_store_set` also writes the field's sound into its stored copy in the
 project image the OS keeps in RAM (what SAVE PROJECT writes and a power
 cycle brings back), with the layout ID and the generation, as stock writes

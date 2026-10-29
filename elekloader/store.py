@@ -111,7 +111,7 @@ CODES_TABLE = 'core_lock_codes'
 CCS_TABLE = 'core_lock_ccs'
 LOCK_DST = 'core_lfo_dst'
 LFO_FLAG = 0x100                                # in core_lock_codes: the field is an LFO destination
-FIRST_CODE, LAST_CODE = 42, 127
+FIRST_CODE, LAST_CODE = 42, 127                 # the Analog Rytm MKII's; a device's 'codes' can differ
 LOCK_SCOPES = ('sound',)
 
 # Per device: each scope's bits in its live home, and the tagged store.
@@ -141,8 +141,14 @@ DEVICES = {
         'store': 0,
         'items': {'track': 0, 'pattern': 0},
         'split': {'track': 0, 'pattern': 0},
+        'codes': (101, 127),                         # a code is the parameter's value slot past stock's 0..100 (core-dn2 0.4)
     },
 }
+
+
+def code_range(dev_key):
+    """(first, last) lock code on the device."""
+    return DEVICES.get(dev_key, {}).get('codes', (FIRST_CODE, LAST_CODE))
 
 
 def supports(dev_key):
@@ -336,7 +342,8 @@ def check_lock(lock, dev_key):
                                % (f['sym'], f['mod']))
     if any(k in lock for k in ('codes', 'freed_codes', 'next_code')):
         nc = lock.get('next_code')
-        if not _whole(nc) or not FIRST_CODE <= nc <= LAST_CODE + 1:
+        first, last = code_range(dev_key)
+        if not _whole(nc) or not first <= nc <= last + 1:
             raise ModError('lockfile: "next_code" %r' % (nc,))
         seen = set()
         for k in ('codes', 'freed_codes'):
@@ -346,7 +353,7 @@ def check_lock(lock, dev_key):
             for c in cs:
                 if not isinstance(c, dict) or set(c) != {'mod', 'sym', 'code'} \
                         or not isinstance(c['mod'], str) or not isinstance(c['sym'], str) \
-                        or not _whole(c['code']) or not FIRST_CODE <= c['code'] < nc or c['code'] in seen:
+                        or not _whole(c['code']) or not first <= c['code'] < nc or c['code'] in seen:
                     raise ModError('lockfile: a bad entry in "%s"' % k)
                 seen.add(c['code'])
         placed = {(f['mod'], f['sym']) for f in lock['fields'] if f['scope'] in LOCK_SCOPES}
@@ -532,7 +539,8 @@ def _codes(lock, want, kept, back, notes):
     if not want and not had[0] and not had[1]:
         return False                    # a lockfile that never had a lockable field stays as it was
     codes, freed = [], [dict(c) for c in had[1]]
-    nxt = lock.get('next_code', FIRST_CODE)
+    first, last = code_range(lock.get('device'))
+    nxt = lock.get('next_code', first)
     changed = False
     for c in had[0]:
         k = (c['mod'], c['sym'])
@@ -551,7 +559,7 @@ def _codes(lock, want, kept, back, notes):
             c = same[-1]
             freed.remove(c)
             notes.append('%s %s: back with lock code %d' % (k[0], k[1], c['code']))
-        elif nxt <= LAST_CODE:
+        elif nxt <= last:
             c = {'mod': k[0], 'sym': k[1], 'code': nxt}
             nxt += 1
             notes.append('%s %s: lock code %d' % (k[0], k[1], c['code']))
@@ -560,7 +568,7 @@ def _codes(lock, want, kept, back, notes):
             c = {'mod': k[0], 'sym': k[1], 'code': old['code']}
             notes.append('%s %s: lock code %d (was %s %s\'s)' % (k[0], k[1], c['code'], old['mod'], old['sym']))
         else:
-            raise ModError('the mods have more than %d lockable parameters' % (LAST_CODE - FIRST_CODE + 1))
+            raise ModError('the mods have more than %d lockable parameters' % (last - first + 1))
         for d in [d for d in freed if (d['mod'], d['sym']) == k]:
             freed.remove(d)             # a field has one code
         codes.append(c)

@@ -9849,6 +9849,1121 @@
      "layout_id": 892894108
     }
    ]
+  },
+  "dn2 codes: from 101, run out at 127": {
+   "steps": [
+    [
+     [
+      [
+       "m",
+       "f00",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f01",
+       "sound",
+       1
+      ]
+     ],
+     [
+      [
+       "m",
+       "f00"
+      ],
+      [
+       "m",
+       "f01"
+      ]
+     ]
+    ],
+    [
+     [
+      [
+       "m",
+       "f00",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f01",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f02",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f03",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f04",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f05",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f06",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f07",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f08",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f09",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f10",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f11",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f12",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f13",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f14",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f15",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f16",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f17",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f18",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f19",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f20",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f21",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f22",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f23",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f24",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f25",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f26",
+       "sound",
+       1
+      ]
+     ],
+     [
+      [
+       "m",
+       "f00"
+      ],
+      [
+       "m",
+       "f01"
+      ],
+      [
+       "m",
+       "f02"
+      ],
+      [
+       "m",
+       "f03"
+      ],
+      [
+       "m",
+       "f04"
+      ],
+      [
+       "m",
+       "f05"
+      ],
+      [
+       "m",
+       "f06"
+      ],
+      [
+       "m",
+       "f07"
+      ],
+      [
+       "m",
+       "f08"
+      ],
+      [
+       "m",
+       "f09"
+      ],
+      [
+       "m",
+       "f10"
+      ],
+      [
+       "m",
+       "f11"
+      ],
+      [
+       "m",
+       "f12"
+      ],
+      [
+       "m",
+       "f13"
+      ],
+      [
+       "m",
+       "f14"
+      ],
+      [
+       "m",
+       "f15"
+      ],
+      [
+       "m",
+       "f16"
+      ],
+      [
+       "m",
+       "f17"
+      ],
+      [
+       "m",
+       "f18"
+      ],
+      [
+       "m",
+       "f19"
+      ],
+      [
+       "m",
+       "f20"
+      ],
+      [
+       "m",
+       "f21"
+      ],
+      [
+       "m",
+       "f22"
+      ],
+      [
+       "m",
+       "f23"
+      ],
+      [
+       "m",
+       "f24"
+      ],
+      [
+       "m",
+       "f25"
+      ],
+      [
+       "m",
+       "f26"
+      ]
+     ]
+    ],
+    [
+     [
+      [
+       "m",
+       "f00",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f01",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f02",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f03",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f04",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f05",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f06",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f07",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f08",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f09",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f10",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f11",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f12",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f13",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f14",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f15",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f16",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f17",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f18",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f19",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f20",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f21",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f22",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f23",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f24",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f25",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f26",
+       "sound",
+       1
+      ],
+      [
+       "m",
+       "f27",
+       "sound",
+       1
+      ]
+     ],
+     [
+      [
+       "m",
+       "f00"
+      ],
+      [
+       "m",
+       "f01"
+      ],
+      [
+       "m",
+       "f02"
+      ],
+      [
+       "m",
+       "f03"
+      ],
+      [
+       "m",
+       "f04"
+      ],
+      [
+       "m",
+       "f05"
+      ],
+      [
+       "m",
+       "f06"
+      ],
+      [
+       "m",
+       "f07"
+      ],
+      [
+       "m",
+       "f08"
+      ],
+      [
+       "m",
+       "f09"
+      ],
+      [
+       "m",
+       "f10"
+      ],
+      [
+       "m",
+       "f11"
+      ],
+      [
+       "m",
+       "f12"
+      ],
+      [
+       "m",
+       "f13"
+      ],
+      [
+       "m",
+       "f14"
+      ],
+      [
+       "m",
+       "f15"
+      ],
+      [
+       "m",
+       "f16"
+      ],
+      [
+       "m",
+       "f17"
+      ],
+      [
+       "m",
+       "f18"
+      ],
+      [
+       "m",
+       "f19"
+      ],
+      [
+       "m",
+       "f20"
+      ],
+      [
+       "m",
+       "f21"
+      ],
+      [
+       "m",
+       "f22"
+      ],
+      [
+       "m",
+       "f23"
+      ],
+      [
+       "m",
+       "f24"
+      ],
+      [
+       "m",
+       "f25"
+      ],
+      [
+       "m",
+       "f26"
+      ],
+      [
+       "m",
+       "f27"
+      ]
+     ]
+    ]
+   ],
+   "results": [
+    {
+     "lock": {
+      "elekloader_store": 1,
+      "device": "digitone-mk2",
+      "id": "0x679da736",
+      "ancestors": [],
+      "split": {
+       "track": 0,
+       "pattern": 0
+      },
+      "generation": {
+       "sound": 1,
+       "kit": 1,
+       "global": 1,
+       "track": 1,
+       "pattern": 1,
+       "project": 1
+      },
+      "next": {
+       "sound": 2,
+       "kit": 0,
+       "global": 0,
+       "track": 0,
+       "pattern": 0,
+       "project": 0
+      },
+      "fields": [
+       {
+        "mod": "m",
+        "sym": "f00",
+        "scope": "sound",
+        "offset": 0,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f01",
+        "scope": "sound",
+        "offset": 1,
+        "bits": 1
+       }
+      ],
+      "freed": [],
+      "codes": [
+       {
+        "mod": "m",
+        "sym": "f00",
+        "code": 101
+       },
+       {
+        "mod": "m",
+        "sym": "f01",
+        "code": 102
+       }
+      ],
+      "freed_codes": [],
+      "next_code": 103
+     },
+     "notes": [
+      "a new lockfile, layout ID 0x679da736: projects and sounds saved by builds with other layouts load their mod data at defaults",
+      "m f00: 1 bits of sound storage at bit 0",
+      "m f01: 1 bits of sound storage at bit 1",
+      "m f00: lock code 101",
+      "m f01: lock code 102"
+     ],
+     "codes": [
+      "1040000000000065",
+      "1040000100000066"
+     ],
+     "json": "{\n \"elekloader_store\": 1,\n \"device\": \"digitone-mk2\",\n \"id\": \"0x679da736\",\n \"ancestors\": [],\n \"split\": {\n  \"track\": 0,\n  \"pattern\": 0\n },\n \"generation\": {\n  \"sound\": 1,\n  \"kit\": 1,\n  \"global\": 1,\n  \"track\": 1,\n  \"pattern\": 1,\n  \"project\": 1\n },\n \"next\": {\n  \"sound\": 2,\n  \"kit\": 0,\n  \"global\": 0,\n  \"track\": 0,\n  \"pattern\": 0,\n  \"project\": 0\n },\n \"fields\": [\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f00\",\n   \"scope\": \"sound\",\n   \"offset\": 0,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f01\",\n   \"scope\": \"sound\",\n   \"offset\": 1,\n   \"bits\": 1\n  }\n ],\n \"freed\": [],\n \"codes\": [\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f00\",\n   \"code\": 101\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f01\",\n   \"code\": 102\n  }\n ],\n \"freed_codes\": [],\n \"next_code\": 103\n}\n",
+     "layout_id": 1738385206
+    },
+    {
+     "lock": {
+      "elekloader_store": 1,
+      "device": "digitone-mk2",
+      "id": "0xfec56355",
+      "ancestors": [
+       "0x679da736"
+      ],
+      "split": {
+       "track": 0,
+       "pattern": 0
+      },
+      "generation": {
+       "sound": 1,
+       "kit": 1,
+       "global": 1,
+       "track": 1,
+       "pattern": 1,
+       "project": 1
+      },
+      "next": {
+       "sound": 27,
+       "kit": 0,
+       "global": 0,
+       "track": 0,
+       "pattern": 0,
+       "project": 0
+      },
+      "fields": [
+       {
+        "mod": "m",
+        "sym": "f00",
+        "scope": "sound",
+        "offset": 0,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f01",
+        "scope": "sound",
+        "offset": 1,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f02",
+        "scope": "sound",
+        "offset": 2,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f03",
+        "scope": "sound",
+        "offset": 3,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f04",
+        "scope": "sound",
+        "offset": 4,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f05",
+        "scope": "sound",
+        "offset": 5,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f06",
+        "scope": "sound",
+        "offset": 6,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f07",
+        "scope": "sound",
+        "offset": 7,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f08",
+        "scope": "sound",
+        "offset": 8,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f09",
+        "scope": "sound",
+        "offset": 9,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f10",
+        "scope": "sound",
+        "offset": 10,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f11",
+        "scope": "sound",
+        "offset": 11,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f12",
+        "scope": "sound",
+        "offset": 12,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f13",
+        "scope": "sound",
+        "offset": 13,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f14",
+        "scope": "sound",
+        "offset": 14,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f15",
+        "scope": "sound",
+        "offset": 15,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f16",
+        "scope": "sound",
+        "offset": 16,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f17",
+        "scope": "sound",
+        "offset": 17,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f18",
+        "scope": "sound",
+        "offset": 18,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f19",
+        "scope": "sound",
+        "offset": 19,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f20",
+        "scope": "sound",
+        "offset": 20,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f21",
+        "scope": "sound",
+        "offset": 21,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f22",
+        "scope": "sound",
+        "offset": 22,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f23",
+        "scope": "sound",
+        "offset": 23,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f24",
+        "scope": "sound",
+        "offset": 24,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f25",
+        "scope": "sound",
+        "offset": 25,
+        "bits": 1
+       },
+       {
+        "mod": "m",
+        "sym": "f26",
+        "scope": "sound",
+        "offset": 26,
+        "bits": 1
+       }
+      ],
+      "freed": [],
+      "codes": [
+       {
+        "mod": "m",
+        "sym": "f00",
+        "code": 101
+       },
+       {
+        "mod": "m",
+        "sym": "f01",
+        "code": 102
+       },
+       {
+        "mod": "m",
+        "sym": "f02",
+        "code": 103
+       },
+       {
+        "mod": "m",
+        "sym": "f03",
+        "code": 104
+       },
+       {
+        "mod": "m",
+        "sym": "f04",
+        "code": 105
+       },
+       {
+        "mod": "m",
+        "sym": "f05",
+        "code": 106
+       },
+       {
+        "mod": "m",
+        "sym": "f06",
+        "code": 107
+       },
+       {
+        "mod": "m",
+        "sym": "f07",
+        "code": 108
+       },
+       {
+        "mod": "m",
+        "sym": "f08",
+        "code": 109
+       },
+       {
+        "mod": "m",
+        "sym": "f09",
+        "code": 110
+       },
+       {
+        "mod": "m",
+        "sym": "f10",
+        "code": 111
+       },
+       {
+        "mod": "m",
+        "sym": "f11",
+        "code": 112
+       },
+       {
+        "mod": "m",
+        "sym": "f12",
+        "code": 113
+       },
+       {
+        "mod": "m",
+        "sym": "f13",
+        "code": 114
+       },
+       {
+        "mod": "m",
+        "sym": "f14",
+        "code": 115
+       },
+       {
+        "mod": "m",
+        "sym": "f15",
+        "code": 116
+       },
+       {
+        "mod": "m",
+        "sym": "f16",
+        "code": 117
+       },
+       {
+        "mod": "m",
+        "sym": "f17",
+        "code": 118
+       },
+       {
+        "mod": "m",
+        "sym": "f18",
+        "code": 119
+       },
+       {
+        "mod": "m",
+        "sym": "f19",
+        "code": 120
+       },
+       {
+        "mod": "m",
+        "sym": "f20",
+        "code": 121
+       },
+       {
+        "mod": "m",
+        "sym": "f21",
+        "code": 122
+       },
+       {
+        "mod": "m",
+        "sym": "f22",
+        "code": 123
+       },
+       {
+        "mod": "m",
+        "sym": "f23",
+        "code": 124
+       },
+       {
+        "mod": "m",
+        "sym": "f24",
+        "code": 125
+       },
+       {
+        "mod": "m",
+        "sym": "f25",
+        "code": 126
+       },
+       {
+        "mod": "m",
+        "sym": "f26",
+        "code": 127
+       }
+      ],
+      "freed_codes": [],
+      "next_code": 128
+     },
+     "notes": [
+      "m f02: 1 bits of sound storage at bit 2",
+      "m f03: 1 bits of sound storage at bit 3",
+      "m f04: 1 bits of sound storage at bit 4",
+      "m f05: 1 bits of sound storage at bit 5",
+      "m f06: 1 bits of sound storage at bit 6",
+      "m f07: 1 bits of sound storage at bit 7",
+      "m f08: 1 bits of sound storage at bit 8",
+      "m f09: 1 bits of sound storage at bit 9",
+      "m f10: 1 bits of sound storage at bit 10",
+      "m f11: 1 bits of sound storage at bit 11",
+      "m f12: 1 bits of sound storage at bit 12",
+      "m f13: 1 bits of sound storage at bit 13",
+      "m f14: 1 bits of sound storage at bit 14",
+      "m f15: 1 bits of sound storage at bit 15",
+      "m f16: 1 bits of sound storage at bit 16",
+      "m f17: 1 bits of sound storage at bit 17",
+      "m f18: 1 bits of sound storage at bit 18",
+      "m f19: 1 bits of sound storage at bit 19",
+      "m f20: 1 bits of sound storage at bit 20",
+      "m f21: 1 bits of sound storage at bit 21",
+      "m f22: 1 bits of sound storage at bit 22",
+      "m f23: 1 bits of sound storage at bit 23",
+      "m f24: 1 bits of sound storage at bit 24",
+      "m f25: 1 bits of sound storage at bit 25",
+      "m f26: 1 bits of sound storage at bit 26",
+      "m f02: lock code 103",
+      "m f03: lock code 104",
+      "m f04: lock code 105",
+      "m f05: lock code 106",
+      "m f06: lock code 107",
+      "m f07: lock code 108",
+      "m f08: lock code 109",
+      "m f09: lock code 110",
+      "m f10: lock code 111",
+      "m f11: lock code 112",
+      "m f12: lock code 113",
+      "m f13: lock code 114",
+      "m f14: lock code 115",
+      "m f15: lock code 116",
+      "m f16: lock code 117",
+      "m f17: lock code 118",
+      "m f18: lock code 119",
+      "m f19: lock code 120",
+      "m f20: lock code 121",
+      "m f21: lock code 122",
+      "m f22: lock code 123",
+      "m f23: lock code 124",
+      "m f24: lock code 125",
+      "m f25: lock code 126",
+      "m f26: lock code 127",
+      "layout ID 0xfec56355 (from 0x679da736, whose projects it still reads)"
+     ],
+     "codes": [
+      "1040000000000065",
+      "1040000100000066",
+      "1040000200000067",
+      "1040000300000068",
+      "1040000400000069",
+      "104000050000006a",
+      "104000060000006b",
+      "104000070000006c",
+      "104000080000006d",
+      "104000090000006e",
+      "1040000a0000006f",
+      "1040000b00000070",
+      "1040000c00000071",
+      "1040000d00000072",
+      "1040000e00000073",
+      "1040000f00000074",
+      "1040001000000075",
+      "1040001100000076",
+      "1040001200000077",
+      "1040001300000078",
+      "1040001400000079",
+      "104000150000007a",
+      "104000160000007b",
+      "104000170000007c",
+      "104000180000007d",
+      "104000190000007e",
+      "1040001a0000007f"
+     ],
+     "json": "{\n \"elekloader_store\": 1,\n \"device\": \"digitone-mk2\",\n \"id\": \"0xfec56355\",\n \"ancestors\": [\n  \"0x679da736\"\n ],\n \"split\": {\n  \"track\": 0,\n  \"pattern\": 0\n },\n \"generation\": {\n  \"sound\": 1,\n  \"kit\": 1,\n  \"global\": 1,\n  \"track\": 1,\n  \"pattern\": 1,\n  \"project\": 1\n },\n \"next\": {\n  \"sound\": 27,\n  \"kit\": 0,\n  \"global\": 0,\n  \"track\": 0,\n  \"pattern\": 0,\n  \"project\": 0\n },\n \"fields\": [\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f00\",\n   \"scope\": \"sound\",\n   \"offset\": 0,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f01\",\n   \"scope\": \"sound\",\n   \"offset\": 1,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f02\",\n   \"scope\": \"sound\",\n   \"offset\": 2,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f03\",\n   \"scope\": \"sound\",\n   \"offset\": 3,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f04\",\n   \"scope\": \"sound\",\n   \"offset\": 4,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f05\",\n   \"scope\": \"sound\",\n   \"offset\": 5,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f06\",\n   \"scope\": \"sound\",\n   \"offset\": 6,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f07\",\n   \"scope\": \"sound\",\n   \"offset\": 7,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f08\",\n   \"scope\": \"sound\",\n   \"offset\": 8,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f09\",\n   \"scope\": \"sound\",\n   \"offset\": 9,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f10\",\n   \"scope\": \"sound\",\n   \"offset\": 10,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f11\",\n   \"scope\": \"sound\",\n   \"offset\": 11,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f12\",\n   \"scope\": \"sound\",\n   \"offset\": 12,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f13\",\n   \"scope\": \"sound\",\n   \"offset\": 13,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f14\",\n   \"scope\": \"sound\",\n   \"offset\": 14,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f15\",\n   \"scope\": \"sound\",\n   \"offset\": 15,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f16\",\n   \"scope\": \"sound\",\n   \"offset\": 16,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f17\",\n   \"scope\": \"sound\",\n   \"offset\": 17,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f18\",\n   \"scope\": \"sound\",\n   \"offset\": 18,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f19\",\n   \"scope\": \"sound\",\n   \"offset\": 19,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f20\",\n   \"scope\": \"sound\",\n   \"offset\": 20,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f21\",\n   \"scope\": \"sound\",\n   \"offset\": 21,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f22\",\n   \"scope\": \"sound\",\n   \"offset\": 22,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f23\",\n   \"scope\": \"sound\",\n   \"offset\": 23,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f24\",\n   \"scope\": \"sound\",\n   \"offset\": 24,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f25\",\n   \"scope\": \"sound\",\n   \"offset\": 25,\n   \"bits\": 1\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f26\",\n   \"scope\": \"sound\",\n   \"offset\": 26,\n   \"bits\": 1\n  }\n ],\n \"freed\": [],\n \"codes\": [\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f00\",\n   \"code\": 101\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f01\",\n   \"code\": 102\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f02\",\n   \"code\": 103\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f03\",\n   \"code\": 104\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f04\",\n   \"code\": 105\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f05\",\n   \"code\": 106\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f06\",\n   \"code\": 107\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f07\",\n   \"code\": 108\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f08\",\n   \"code\": 109\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f09\",\n   \"code\": 110\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f10\",\n   \"code\": 111\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f11\",\n   \"code\": 112\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f12\",\n   \"code\": 113\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f13\",\n   \"code\": 114\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f14\",\n   \"code\": 115\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f15\",\n   \"code\": 116\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f16\",\n   \"code\": 117\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f17\",\n   \"code\": 118\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f18\",\n   \"code\": 119\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f19\",\n   \"code\": 120\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f20\",\n   \"code\": 121\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f21\",\n   \"code\": 122\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f22\",\n   \"code\": 123\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f23\",\n   \"code\": 124\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f24\",\n   \"code\": 125\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f25\",\n   \"code\": 126\n  },\n  {\n   \"mod\": \"m\",\n   \"sym\": \"f26\",\n   \"code\": 127\n  }\n ],\n \"freed_codes\": [],\n \"next_code\": 128\n}\n",
+     "layout_id": 4274348885
+    },
+    {
+     "error": "the mods have more than 27 lockable parameters"
+    }
+   ],
+   "device": "digitone-mk2"
   }
  },
  "cc_runs": {

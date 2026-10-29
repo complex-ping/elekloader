@@ -7,7 +7,7 @@
 struct names { const char *name, *label, *hint; };
 struct descriptor { const char *name, *label; uint32_t params[9]; };
 struct string_rep { uint32_t length, capacity; int32_t references; char text[32]; };
-/* The stock parameter table's 60-byte row; the bound sites in mod.json allow G_CODE + 1. */
+/* The parameter table's 60-byte row. Core (0.4) keeps the table, rows 321..361 are this companion's. */
 struct row {
     int32_t owner, slot, min, max, def, flag;
     int16_t cc, cc_low;
@@ -39,7 +39,8 @@ static const struct mk2_synth *registered[COUNT];
 static struct descriptor descriptors[COUNT];
 static struct string_rep strings[COUNT][2];
 static uint32_t ready;
-struct row dn2_t1[G_CODE + 1];     /* the stock rows are copied in at boot (start.s) */
+extern struct row core_rows[];     /* core-dn2 0.4's parameter table: the stock rows, then ours */
+#define dn2_t1 core_rows
 static struct descriptor pages[ADDED / 8];
 static uint8_t first_page[COUNT], page_count[COUNT];
 static struct string_rep tabs[ADDED / 8];
@@ -245,12 +246,6 @@ uint32_t dn2_cc_code(uint32_t track, uint32_t synth, uint32_t filter, uint32_t c
 uint32_t dn2_nrpn_code(uint32_t track, uint32_t synth, uint32_t filter, uint32_t nrpn)
 {
     return voice_lookup(dn2_stock_nrpn, track, synth, filter, nrpn);
-}
-
-/* An added row's value-class object is its template's. */
-uint32_t dn2_value_code(uint32_t code)
-{
-    return code == G_CODE ? G_TEMPLATE : code >= ROWS && code < G_CODE ? TEMPLATE : code;
 }
 
 uintptr_t dn2_descriptor(uint32_t type)

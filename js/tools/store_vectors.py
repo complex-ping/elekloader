@@ -100,6 +100,13 @@ LOCK_RUNS = {
     'codes: run out': [([F('m', 'f%02d' % i, 'sound', 1) for i in range(50)],
                         [['m', 'f%02d' % i] for i in range(50)])],
 }
+# the same on another device: the Digitone II's codes are its value slots 101..127 (core-dn2 0.4)
+DN2 = [F('m', 'f%02d' % i, 'sound', 1) for i in range(28)]
+DEV_LOCK_RUNS = {
+    'dn2 codes: from 101, run out at 127': ('digitone-mk2', [
+        (DN2[:2], [['m', 'f00'], ['m', 'f01']]), (DN2[:27], [['m', 'f%02d' % i] for i in range(27)]),
+        (DN2, [['m', 'f%02d' % i] for i in range(28)])]),
+}
 # runs with CCs (core-ar2 0.8): each step is (decls, lockable, [[mod, sym], ...] with a CC)
 SC = [F('a', 'x', 'sound', 7), F('b', 'z', 'sound', 3)]
 XZ = [['a', 'x'], ['b', 'z']]
@@ -188,16 +195,17 @@ def main():
         for first in firsts:
             lock, _ = store.allocate(lock, [tuple(d) for d in first], DEV, '0.3')
         out['runs'][name] = {'start': lock, 'steps': [then], 'core': core, 'results': run(lock, [then], core)}
-    for name, steps in LOCK_RUNS.items():
+    for name, (dev, steps) in [(n, (DEV, st)) for n, st in LOCK_RUNS.items()] + list(DEV_LOCK_RUNS.items()):
         lock, res = None, []
         for decls, locks in steps:
             try:
-                lock, notes = store.allocate(lock, [tuple(d) for d in decls], DEV, None, [tuple(k) for k in locks])
+                lock, notes = store.allocate(lock, [tuple(d) for d in decls], dev, None, [tuple(k) for k in locks])
                 res.append({'lock': lock, 'notes': notes, 'codes': [t.hex() for t in store.code_entries(lock)],
                             'json': store.dumps(lock), 'layout_id': store.layout_id(lock)})
             except ModError as e:
                 res.append({'error': str(e)})
-        out['lock_runs'][name] = {'steps': [[d, k] for d, k in steps], 'results': res}
+        out['lock_runs'][name] = dict({'steps': [[d, k] for d, k in steps], 'results': res},
+                                      **({'device': dev} if dev != DEV else {}))
     for name, steps in CC_RUNS.items():
         lock, res = None, []
         for decls, locks, ccs in steps:

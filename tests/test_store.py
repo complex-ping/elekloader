@@ -253,6 +253,17 @@ def test_lockable_fields_get_codes_that_follow_them():
     store.check_lock(l3, DEV)
 
 
+def test_digitone_ii_codes_are_its_value_slots_101_to_127():
+    d = [('m', 'f%02d' % i, 'sound', 1) for i in range(28)]
+    keys = [(m, f) for m, f, _s, _b in d]
+    l1, _ = store.allocate(None, d[:27], 'digitone-mk2', None, keys[:27])
+    assert [c['code'] for c in l1['codes']] == list(range(101, 128)) and l1['next_code'] == 128
+    store.check_lock(l1, 'digitone-mk2')
+    assert 'more than 27 lockable' in refused(store.allocate, l1, d, 'digitone-mk2', None, keys)
+    assert '"next_code"' in refused(store.check_lock, dict(l1, next_code=100), 'digitone-mk2')
+    assert store.code_range('digitone-mk2') == (101, 127) and store.code_range(DEV) == (42, 127)
+
+
 def test_ccs_follow_their_fields_and_not_the_layout():
     d = [('a', 'x', 'sound', 7), ('b', 'z', 'sound', 3)]
     xz = [('a', 'x'), ('b', 'z')]

@@ -29,22 +29,28 @@ class RegistryTests(unittest.TestCase):
 
 
 class ParameterTableSitesTests(unittest.TestCase):
-    def test_bounds_and_references_match_the_appended_rows(self):
-        source = (ROOT / 'mods/machines-dn2/machines.c').read_text()
-        define = {name: int(value, 0) for name, value in
-                  (line.split()[1:3] for line in source.splitlines() if line.startswith('#define '))}
-        mod = json.loads((ROOT / 'mods/machines-dn2/mod.json').read_text())
-        self.assertEqual(int(mod['defsym']['T1_ROWS']), define['ROWS'])
-        self.assertEqual(define['G_CODE'], define['ROWS'] + define['ADDED'])  # G's row ends the table
-        bounds = [s for s in mod['sites'] if s['op'] == 'bytes' and len(s['stock']) == 12]
+    def test_core_moves_the_table_and_raises_every_bound_past_the_added_rows(self):
+        def defines(path):
+            return {line.split()[1]: line.split()[2] for line in (ROOT / path).read_text().splitlines()
+                    if line.startswith('#define ') and len(line.split()) > 2}
+        machines, params = defines('mods/machines-dn2/machines.c'), defines('mods/core-dn2/params.c')
+        stock, added, codes = int(machines['ROWS']), int(machines['ADDED']), int(params['CODES'])
+        self.assertEqual(int(params['STOCK_ROWS']), stock)
+        self.assertEqual(int(params['MACHINE_ROWS']), added + 1)                  # the synth's knobs and G
+        self.assertEqual(int(machines['G_CODE']), stock + added)                  # G's row follows them
+        self.assertEqual(int(params['MACHINE_G']), int(machines['G_CODE']))
+        rows = stock + added + 1 + codes
+        core = json.loads((ROOT / 'mods/core-dn2/mod.json').read_text())
+        bounds = [s for s in core['sites'] if s['op'] == 'bytes' and len(s['stock']) == 12]
         self.assertEqual(len(bounds), 54)
         for site in bounds:
-            stock, new = bytes.fromhex(site['stock']), bytes.fromhex(site['new'])
-            self.assertEqual(stock[:2], new[:2], site['addr'])
-            self.assertIn(int.from_bytes(stock[2:], 'big'), (define['ROWS'], define['ROWS'] - 1))
-            self.assertEqual(int.from_bytes(new[2:], 'big') - int.from_bytes(stock[2:], 'big'),
-                             define['G_CODE'] + 1 - define['ROWS'], site['addr'])
-        self.assertEqual(sum(s.get('target') == 'dn2_t1' for s in mod['sites']), 56)
+            old, new = bytes.fromhex(site['stock']), bytes.fromhex(site['new'])
+            self.assertEqual(old[:2], new[:2], site['addr'])
+            self.assertIn(int.from_bytes(old[2:], 'big'), (stock, stock - 1))
+            self.assertEqual(int.from_bytes(new[2:], 'big') - int.from_bytes(old[2:], 'big'), rows - stock, site['addr'])
+        self.assertEqual(sum(s.get('target') == 'core_rows' for s in core['sites']), 56)
+        machines_mod = json.loads((ROOT / 'mods/machines-dn2/mod.json').read_text())
+        self.assertFalse([s for s in machines_mod['sites'] if s.get('target') in ('dn2_t1', 'core_rows')])
 
 
 @unittest.skipUnless(CF_CALL and STOCK and os.environ.get('ELEKLOADER_CROSS'),

@@ -216,8 +216,11 @@ The sites core owns (do not patch them):
   0x40033dde, 0x400a5eac, 0x4009e2a2;
 - Digitone II 1.12: 0x40000538, 0x4002e464, 0x4002e4ca, 0x4002f20c,
   0x4002f256, 0x4009ff88, 0x400987a2, 0x4011fc8c, 0x4011f8c4,
-  0x4012197a, and from core-dn2 0.3 0x400dd80a and 0x400dd34e (mod
-  storage);
+  0x4012197a, from core-dn2 0.3 0x400dd80a and 0x400dd34e (mod
+  storage), and from 0.4 0x40000568, 0x400c257c, 0x400c25d8, 0x400614e2,
+  0x4005cc0e, 0x4003717c, 0x40037bd0 and the parameter table's 56
+  references and 54 bounds (mod parameters; mods/core-dn2/mod.json lists
+  them);
 - Analog Rytm MKII 1.73: 0x400008c0, 0x400a2bee, 0x400a2c56, 0x400a47cc,
   0x400a4816, 0x400db87e, 0x4011fb02, 0x40121656;
 - Analog Rytm MKII 1.74: 0x400008c0, 0x400a2c5a, 0x400a2cc2, 0x400a4838,
@@ -324,6 +327,45 @@ the bytes), and so does a sound from the stock OS or from a build with
 another layout. A sound saved with mods loads on the stock OS unchanged. The
 [store check](../examples/store-check-dn2/README.md) example fills the 88
 bits.
+
+### Mod parameters (core-dn2 0.4, Digitone II)
+
+From core-dn2 0.4 a sound field can be a knob: a parameter with its own
+row, on a page the [FX] key steps to after its own. Declare the field
+lockable and ask for the core:
+
+```json
+"storage": [{"sym": "my_depth", "scope": "sound", "bits": 7, "lock": true}],
+"resources": {"core": "0.4"}
+```
+
+The linker gives a lockable field a code, 101..127: the value slot it has
+past stock's 0..100, kept in the lockfile as the Rytm's lock codes are.
+Register the parameter in `core_params`, and put it on a page in
+`core_pages`, with `elekloader/sdk/include/digitone-mk2/params.h`:
+
+```c
+#include "digitone-mk2/params.h"
+STORE_FIELD(my_depth);
+const struct core_param my_depth_param = {STORE(my_depth), 0, 127, 64, "DPTH", "Depth", "MINE"};
+const struct core_page my_page = {"MINE", {STORE(my_depth), 0, 0, 0, 0, 0, 0, 0}};
+```
+
+```json
+"contribute": [
+  {"to": "core_params", "order": 50, "data": "00000000", "relocs": [[0, "abs32", "sym:my_depth_param", 0]]},
+  {"to": "core_pages", "order": 50, "data": "00000000", "relocs": [[0, "abs32", "sym:my_page", 0]]}]
+```
+
+| | |
+|---|---|
+| the knob | a row like Overdrive's (a 0..127 knob every machine has) with the parameter's range (0..255), default, label (4 characters), name (15) and group (4); no CC or NRPN |
+| the value | in the field, as the value less the default (mod the field's width), so a sound that never had the field reads the default; `core_param_value(field, sound)` and `core_param_put` read and write it |
+| the pages | up to 8, in `core_pages` order, after [FX]'s own; the header counts them (FX 1/n) |
+| what works | turning the knob, its picture and value, the sound's copy, save and load (mod storage) |
+
+The [param check](../examples/param-check-dn2) example has two knobs on one
+page.
 
 ### The hook bus on the Octatrack (core-ot 0.2)
 
