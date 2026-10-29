@@ -1,0 +1,17 @@
+{
+ "id": "boot-marker",
+ "version": "1.0",
+ "title": "Boot marker",
+ "category": "Examples",
+ "license": "GPL-2.0-or-later",
+ "description": "Writes a word at boot, before the OS starts, and draws a small square in the bottom-right corner once the word is there: the smallest mod on core-mc 0.3's ev_boot.",
+ "device": "model-cycles",
+ "os": "1.13",
+ "sources": ["boot.c"],
+ "subscribe": [
+  {"event": "ev_boot", "fn": "bootmark_boot", "order": 50},
+  {"event": "ev_draw", "fn": "bootmark_draw", "order": 60}
+ ],
+ "requires": ["core"],
+ "resources": {"core": "0.3"}
+}

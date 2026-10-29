@@ -49,7 +49,7 @@ ELEKLOADER_DT2_SYX=Digitakt_II_OS1.17.syx python tests/test_digitakt2.py
 ELEKLOADER_AR2_SYX=Analog-Rytm_MKII_OS1.74.syx python tests/test_rytm_mk2.py   # or 1.73
 ELEKLOADER_A4_SYX=Analog-Four_MKII_OS1.56.syx python tests/test_analog_four_mk2.py
 ELEKLOADER_DN2_SYX=Digitone_II_OS1.12.syx ELEKLOADER_DN2_ZIP=Digitone_II_OS1.12_dist.zip python tests/test_digitone2.py
-ELEKLOADER_MC_SYX=Model_Cycles_OS1.13.syx python tests/test_model_cycles.py   # core-mc 0.2 against 0.1, its exports
+ELEKLOADER_MC_SYX=Model_Cycles_OS1.13.syx python tests/test_model_cycles.py   # core-mc 0.3 against 0.2 and 0.1, its exports and ev_boot
 ELEKLOADER_DN2_SYX=... ELEKLOADER_CROSS=... ELEKLOADER_DIGIKIT=... ELEKLOADER_DIGI_EMUD=... ELEKLOADER_DN2_EMU_READY=... python tests/test_dn2_filter_capture.py
 ELEKLOADER_CATALOG_DIR=folder/of/catalog/files ELEKLOADER_STOCK=... python tests/test_catalog_link.py   # the catalog against core 3.0
 ELEKLOADER_STOCK=... ELEKLOADER_STOCK_154=... ELEKLOADER_OT_SYX=... ELEKLOADER_MODS=... python tests/test_gui.py   # the window, hidden (Tk)
@@ -133,6 +133,14 @@ pending step records and in the MIDI out, and that the pattern is put back:
 python tests/probe_octatrack_seq_events.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
 ```
 
+`tests/probe_octatrack_dsp_feed.py` runs usb-ot's `ot_dsp_feed` in `ot_emu` with a
+block at each offset from a 32-byte buffer: an aligned block is taken, one that is not
+16-byte aligned is refused:
+
+```bash
+python tests/probe_octatrack_dsp_feed.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
+```
+
 The Octatrack's trig-events (mods/trig-events-ot) is checked the same way:
 `tests/probe_octatrack_track_trig.py` (it borrows the seq-events probe's
 fixture and driver) runs the images in `ot_emu` with `--watch-pc` on the
@@ -145,6 +153,17 @@ that trig and nothing else:
 python tests/probe_octatrack_track_trig.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
 ```
 
+The Octatrack's intercepts get the same treatment for `ev_midi_note_key`, the
+one that runs in the sequencer tick: `tests/probe_octatrack_note_key.py`
+(`tests/fixtures/octatrack-note-key` is its record) checks that alone it is
+stock (the registers and the stack at every pass, the MIDI out, the frame
+records), that claims is given the MIDI track, and that a record can rewrite a
+note, drop it, send it or hand it to stock's KEY correction:
+
+```bash
+python tests/probe_octatrack_note_key.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
+```
+
 `tests/probe_octatrack_step_built.py` does the same for `ev_step_built`, the
 record the stock builder has staged: that a handler on it leaves the pending
 records stock's, is given the arguments and the words the tick later copies out,
@@ -155,6 +174,15 @@ in a build nested in a build:
 
 ```bash
 python tests/probe_octatrack_step_built.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
+```
+
+`tests/probe_octatrack_tail_kill.py` does it for trig-events 0.2's `ev_tail_kill`, with
+the held-track byte poked so that STOP's tail kill is on: that alone it is stock, that the
+handlers are told of each pass with the record and the track, and that a byte a handler
+stores in the record reaches the next handler and the DSP's copies:
+
+```bash
+python tests/probe_octatrack_tail_kill.py --emulator path/to/octabam --stock OCTATRACK_OS1.40C.syx
 ```
 
 ## The boot gate

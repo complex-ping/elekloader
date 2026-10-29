@@ -56,6 +56,14 @@ the unit does: every reply is stock's, byte for byte.
   16-byte RX FIFO loses packet tails under a busy project otherwise, as
   sambanks/octabam measured), and an EP0 reply that crosses a 4 KB page is
   sent whole.
+  - **The bus priority is set whenever any function is in the build**, USB
+    MIDI alone included, though the measurement was of the receive path. It
+    changes how the card's DMA and USB share the bus. octabam's
+    FAILURE_MODES.md records one bank file written with a 64-byte burst
+    missing on an image that had its USB crossbar module (the cause is
+    inferred, one incident, not reproduced). Modwerk's USB MIDI and audio out
+    do not set it and ran on a unit. Nothing here has been run on a unit
+    with it set or unset to tell; it is left as it was.
 
 ## Writing a function
 
@@ -94,6 +102,13 @@ In octabam's emulator (`ot_emu --usb-host` with its
 speeds, with every descriptor reply (device, configuration, OTHER_SPEED)
 byte-identical to stock's, mass storage answering INQUIRY, and no EP0
 stall.
+
+`ot_dsp_feed` refuses a block that is not 16-byte aligned, and answers 0 (the
+eDMA reads in 16-byte bursts). In `ot_emu` (`tests/probe_octatrack_dsp_feed.py`,
+6 checks; emulator only, which does not model the eDMA fault): an `ev_dsp_feed`
+handler is called each frame; blocks at 0 and 16 bytes from a 32-byte buffer are
+taken and aim eDMA channel 0 at them; blocks 4, 8 and 12 bytes off are refused
+every time and channel 0 is never aimed at them.
 
 A function whose `enabled()` returns 0 (USB audio with its layout OFF, set
 in the MODS menu and read after a reboot) leaves the build as a build

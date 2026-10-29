@@ -22,7 +22,9 @@
 |       1 and *value (8.8) when it answers, 0 to pass
 |   int delta(void *view, int32_t id, int32_t delta, int32_t func)
 |       delta in 8.8, func 1 while FUNC is held; 1 when it took the turn (core
-|       then redraws the view, and stock makes no lock), 0 to pass
+|       then marks the project modified (0.8, core_project_edited), sends a
+|       lockable parameter's NRPN or CC (0.8, midi.c) and redraws the view,
+|       and stock makes no lock), 0 to pass
 |   int text(struct core_text *t)
 |       t is the routine's own arguments {obj, id, value, buf}: 0 to pass, 1
 |       when it wrote buf, 2 when stock should go on with t's id and value,
@@ -89,7 +91,20 @@ param_next:
 
 | page_get_value (0x40038462): `lea %sp@(-12),%sp; moveml %d2-%d3/%a2,%sp@`.
 | Frame: 0 the cursor, 4 the answer, 12 view, 16 id, 20 lock.
+| With a scene's or performance's pad held, core_held_get (scenes.c, 0.8)
+| answers a mod parameter's lock there first.
 core_param_get:
+        subq.l  #4,%sp                    | its answer
+        pea     (%sp)
+        move.l  16(%sp),-(%sp)            | id
+        move.l  16(%sp),-(%sp)            | view
+        jsr     core_held_get
+        lea     12(%sp),%sp
+        tst.l   %d0
+        beq.s   0f
+        move.l  (%sp)+,%d0
+        rts
+0:      addq.l  #4,%sp
         lea     core_params,%a1
         subq.l  #8,%sp
 1:      move.l  16(%sp),%d0
@@ -136,7 +151,12 @@ core_param_delta:
         move.l  (%sp),%a1
         tst.l   %d0
         beq.s   1b
-        move.l  8(%sp),-(%sp)             | taken: redraw the view now
+        jsr     core_project_edited       | taken: the project is modified (0.8)
+        move.l  12(%sp),-(%sp)            | and a mod parameter's MIDI out (0.8)
+        move.l  12(%sp),-(%sp)
+        jsr     core_midi_knob
+        addq.l  #8,%sp
+        move.l  8(%sp),-(%sp)             | and redraw the view now
         jsr     VIEW_INVALIDATE
         addq.l  #8,%sp
         rts
@@ -168,7 +188,16 @@ core_param_text:
         addq.l  #4,%sp                    | 1: the text is written
         rts
 9:      addq.l  #4,%sp
-        lea     -20(%sp),%sp
+        move.l  16(%sp),-(%sp)            | 0.8: a lockable parameter's number
+        move.l  16(%sp),-(%sp)
+        move.l  16(%sp),-(%sp)
+        move.l  16(%sp),-(%sp)
+        jsr     core_lock_text
+        lea     16(%sp),%sp
+        tst.l   %d0
+        beq.s   8f
+        rts
+8:      lea     -20(%sp),%sp
         movem.l %d2-%d4/%a2-%a3,(%sp)
         jmp     TEXT_RET
 

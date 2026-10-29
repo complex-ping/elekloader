@@ -691,12 +691,13 @@ block of up to 160 words that lands at `r6 + $320` in the frame's bank.
 host's samples, its `ev_dsp_rx` handler (`inject.asm`) writes them over the
 inputs.
 
-### Intercepts on the Octatrack (intercepts 0.1)
+### Intercepts on the Octatrack (intercepts 0.2)
 
 `mods/intercepts-ot` is a companion beside core-ot 0.3.1 for places in the
 firmware a mod intercepts, one mod at a time: MIDI notes on a listening
 track, the CHROMATIC keyboard, p-locks and knobs, the settings and the
-project file (19 events; the table is in mods/intercepts-ot/README.md).
+project file (20 events; the table is in mods/intercepts-ot/README.md). 0.2
+adds the MIDI tracks' notes on their way out, `ev_midi_note_key`.
 Modwerk's Octatrack base has the same events under the same names (its
 "take" events), so a record means the same thing on both.
 
@@ -863,8 +864,9 @@ once a frame after the frame's stock transfers. A handler may call
 `ot_dsp_feed(block, words)` once: one more transfer of `words` 16-bit words
 (32, 64, ... 160) to DSP core 0, which lands in the frame's bank at + $320,
 where an `ev_dsp_rx` handler finds it at `r6 + $320`. The unmask waits for
-it. Write the block through `OT_USB_UNCACHED`; the DSP reads each word with a
-stale top byte. A block stays in its bank until the next lands there, and
+it. Write the block through `OT_USB_UNCACHED`, aligned to 16 bytes (the eDMA
+reads in 16-byte bursts; `ot_dsp_feed` answers 0 for a block that is not);
+the DSP reads each word with a stale top byte. A block stays in its bank until the next lands there, and
 the banks alternate: a feeder that stops sends its "nothing" block to both.
 One mod feeds: claim `dsp:feed`. The handlers run above the frame interrupt
 and may interrupt it: no EMAC, few instructions. The feed is not USB's; USB
@@ -1071,6 +1073,32 @@ the smallest mod that uses them.
 
 Call them from the UI task (`ev_tick`, `ev_draw`, `ev_key`, `ev_enc`), and
 the file system under its lock.
+
+### Boot (core-mc 0.3, Model:Cycles)
+
+`ev_boot` runs a mod's work once at boot, before the OS starts. `.boot`
+copies the mods' RAM image and clears their `.bss`, then calls each
+`ev_boot` handler (`void f(void)`, in `order`), then the two stock calls it
+replaced (the SRAM copy and the OS's `.bss` clear). A handler runs:
+- in supervisor mode, with interrupts off and the data cache off;
+- before any firmware routine may be called, so it calls none;
+- before the OS clears its own `.bss`, so it writes only the mods' RAM.
+
+It is the place to fill tables the OS reads while it starts, such as a
+companion's machine tables. A mod on `ev_boot` says
+`"resources": {"core": "0.3"}`. `examples/boot-marker-mc` is the smallest:
+it writes a word at boot and draws a square in the bottom-right corner once
+the word is there.
+
+**The caches.** The Model:Cycles' bootstrap leaves the instruction and
+branch caches on (CACR 0x0008c000), and they do not see the copy `.boot`
+makes, so code the copy wrote could run from stale lines. `.boot`
+invalidates both (`BOOT_CACR`, 0x000cc100, the bootstrap's own value)
+before it calls any handler.
+
+0.3 keeps 0.2's sites, tables, exports and `.run`, with `core_boot_init`
+added at the end of `.run`; its `.boot` is 0.2's with the invalidation and
+the call inserted.
 
 ### Machine pages (core 3.0 and machine-pages, Digitakt mk1)
 
@@ -1410,6 +1438,16 @@ bytes into the stored project. With 0.6 and older a field a mod set from
 its own page with no stock edit waited for the next of those saves, and a
 power cycle before it lost the field.
 
+**The PROCEED prompt.** A project load asks first (ANY CHANGES WILL BE
+LOST. PROCEED WITH LOADING?) only when the project is marked modified, and
+stock marks it only for its own edits. From core-ar2 0.8 core marks it for
+the edits it makes: a turn a mod's page knob takes, a lockable parameter's
+CC or NRPN, and RANDOMIZE PAGE and RELOAD PAGE on a mod's knob. A mod whose
+own keys, encoders or settings change a field calls `core_project_edited()`
+(`store.h`) after it; it may be called from any context, and the mark is
+made on the next UI tick. A mod's `ev_project` handler, or anything else
+that sets a field without an edit, does not call it.
+
 **The lockfile.** Where each field sits is decided once and then kept, in a
 JSON file: `elekloader.patch --lockfile FILE` (default:
 `analog-rytm-mk2.lock.json` in the output's folder, so every build written
@@ -1612,6 +1650,202 @@ pages; rytm2_mods and the AE ports use 20 for a key's first added page and
 30 after it. A view holds 16 pages at most. Deeper hooks inside these routines (a mod that rewrites
 one value's text further in) still work: core resumes each routine where
 its own jump ends.
+
+### Lockable parameters (core-ar2 0.8, Analog Rytm MKII)
+
+The first part of core's lock service: a mod parameter kept in a sound
+field can be an LFO destination (with `"lfo": true`), and RANDOMIZE PAGE
+and RELOAD PAGE reach its page knob. (P-locks, scenes, performances and MIDI build on the same
+codes, below.)
+
+A sound-scope storage field declared with `"lock": true` gets a **lock
+code**, 42..127, from the build's lockfile, the number core knows the
+parameter by. Only sound fields can be lockable. Codes follow their fields
+as bits do: a field keeps its code while it keeps its place; a field that
+leaves the build keeps its code reserved and gets it back when it returns
+to its old place; a resized field gets a new code. Once the never-used
+codes run out (86 of them; the 56-bit sound scope runs out first), the
+oldest reserved code is given to a new field. The lockfile keeps them in
+`codes`, `freed_codes` and `next_code`, written only once a build has a
+lockable field: a lockfile without them keeps its layout ID. The linker
+writes `{field descriptor, code}` for each into core's table
+`core_lock_codes`, and refuses lockable fields when the core has no such
+table.
+
+The mod registers each one in `core_lock_params`
+(`analog-rytm-mk2/lock.h`):
+
+```c
+STORE_FIELD(my_depth);
+const struct core_lock_param my_depth_param =
+    {STORE(my_depth), 449, 0, 127, "DEP", "My Depth", CORE_LOCK_CATEGORY("MINE")};
+```
+
+| member | |
+|---|---|
+| `field` | the lockable field |
+| `id` | the page knob's id (`core_params`), or 0 |
+| `min`, `max` | the values the field takes; locks and MIDI go up to 16383 |
+| `short_name` | the DST value's text and the page knob's label, up to 4 characters |
+| `name` | the destination menu's text, up to 32 |
+| `category` | the destination menu's text before the colon, up to 4 characters, or 0 for `MOD` |
+
+Write the name in proper case and the category in upper case, as stock
+does (`AMP:Reverb Send`, `FILT:Resonance`); core takes them as they are.
+Stock's categories are 3 or 4 characters, and `CORE_LOCK_CATEGORY("...")`
+makes a longer one a compile error in C. Core shows at most 4 characters
+of a short name or a category and 32 of a name, whatever the mod gives:
+stock draws a short name with an unbounded `%s` into a 128-byte buffer, so
+core never hands it a longer string.
+
+A parameter whose `max` is above 127 is locked as stock locks its fine
+parameters: a p-lock and an NRPN hold the whole value (up to 16383), while
+a scene lock, a performance depth and a CC hold its coarse step, the value
+shifted right until `max` fits in 0..127 (0..1000 moves in steps of 8), as
+the kit's file keeps only a stock lock's whole step.
+
+What core does with it:
+
+- **LFO destination.** A lockable field declared with `"lfo": true` as
+  well is an LFO destination; one without it is lockable only, and an
+  `"lfo"` field must be lockable. Each sound's DST menu lists the LFO
+  destinations after stock's, as the category, a colon and the name; the DST value shows
+  the short name. The LFO's DST byte holds the code. Stock saves the
+  destination through a table of its own parameters only, so core keeps the
+  code in a 7-bit sound field of its own, `core_lfo_dst`, which the linker
+  places in a build with an `"lfo"` field (the mods' sound fields then have
+  49 bits, not 56; a build whose fields are lockable only keeps all 56); the
+  saved sound holds stock's own None (META:None), so stock, or a build
+  without the code, loads that LFO with no destination and keeps it so
+  through its own saves. Stock's LFO block skips a slot above 41;
+  there core keeps the track's code and the offset stock would have added,
+  and `core_lfo_offset(track, field)` gives it to the mod: 8.8 steps of a
+  stock 0..127 knob (one step is 256), 0 when the LFO points elsewhere. The
+  mod scales it to its range and adds it where it uses the value. It is
+  updated in the audio interrupt, before `ev_render_out`. RANDOMIZE on DST,
+  its step and its validity check follow the list. The velocity and
+  aftertouch modulation lists don't list them.
+- **RANDOMIZE PAGE** gives a knob whose id is a parameter's `id` a value in
+  `min..max`, written with `core_store_set` into the knob's sound.
+- **RELOAD PAGE** takes it back from the same sound in the current kit's
+  saved copy.
+- **The knob's label** is the short name, where stock would show the
+  borrowed id's own label (an Error record's is ERR).
+- **The knob's value text**, where the mod's `core_params` `text` passes,
+  is the value as a number (with a trig held, the lock's), where stock
+  would check the borrowed id and write ERR.
+- **The knob's value**, with a scene's or a performance's pad held, is its
+  lock there (a scene's lock, a performance's depth), before the mod's
+  `core_params` `get` is asked, as stock's knobs show theirs.
+
+All of these leave the knob to stock when the id is the sound's own stock
+parameter (its slot is a stock one and it is common or the sound's
+machine's): a page knob borrowing another machine's id is core's only on
+the machines that reject it.
+
+Limits: every lockable parameter is listed for every sound, whatever its
+machine. The value a randomize or reload writes reaches the mod through
+the field, not through its `core_params` delta, so a mod that keeps a copy
+elsewhere reads the field again.
+
+### Mod p-locks (core-ar2 0.8, Analog Rytm MKII)
+
+A lockable parameter (above) is p-locked like a stock one: hold a trig and
+turn the parameter's page knob (the `id` it registered). The lock is a row
+in the pattern's lock pool with the field's lock code, so it is saved,
+reloaded, copied and pasted with the pattern, and it shares the pattern's
+72 rows with stock's locks (stock's always fit first; core uses at most 71
+rows, as stock does).
+
+The mod reads the lock while the trig plays:
+
+```c
+#include "analog-rytm-mk2/lock.h"
+
+int v = core_lock_value(track, STORE(my_depth));   /* min..max, or -1: none */
+int depth = v >= 0 ? v : core_store_get(STORE(my_depth), sound, 0);
+```
+
+`core_lock_value(track, field)` is the lock of the trig last played on the
+track (0..12), set with the trig's other locks before it sounds, or -1 when
+that trig has none. A set or a turn moves in whole steps from the sound's
+value, clamped to the parameter's `min..max`. A lock above 127 takes two of
+the pattern's rows for its track.
+
+Mod locks follow the trigs they belong to through copy, paste, clear and
+undo of a trig, page, track or pattern, and through a trig shift.
+
+A pattern's SysEx dump carries its mod locks with a marker of the build's
+layout ID, and a received pattern keeps them only when the marker is the
+receiving build's own; a project of a layout the build doesn't read loads
+without them. Lock codes are a build's own, so a mod lock never lands on
+another build's parameter.
+
+Live recording records a mod parameter as it records a stock one: its
+knob turned, or its NRPN or CC received, locks the value on the step the
+track plays (a lock trig where the step has no trig).
+
+### Mod scene and performance locks (core-ar2 0.8, Analog Rytm MKII)
+
+A lockable parameter is locked to a scene, or given a performance depth,
+like a stock one: in scene (or performance) edit, hold the pad and turn the
+parameter's page knob. The lock is an entry in the kit's 48 scene (or
+performance) locks with the field's lock code, so it is saved with the kit
+and copied, pasted and cleared with the scene, and it shares the 48 with
+stock's.
+
+The mod reads both while the kit plays:
+
+```c
+#include "analog-rytm-mk2/lock.h"
+
+int v = core_lock_value(track, STORE(my_depth));          /* the trig's lock */
+if (v < 0)
+    v = core_scene_value(track, STORE(my_depth));         /* the active scene's */
+if (v < 0)
+    v = core_store_get(STORE(my_depth), sound, 0);
+v += (core_perf_offset(track, STORE(my_depth)) + core_lfo_offset(track, STORE(my_depth))) / 256;
+```
+
+`core_scene_value(track, field)` is the active scene's lock (in `min..max`;
+above 127 a coarse step's value) on a drum track (0..11), or -1 when the
+scene has none or no scene is active. `core_perf_offset(track, field)` is
+what the performances add now, in 8.8 steps of the parameter: each depth
+times its pad's pressure, as stock adds a performance's to a stock
+parameter. Which of the trig's lock and the
+scene's wins is the mod's choice; the order above is one.
+
+A kit's SysEx dump leaves the mod entries out, and a kit of a layout the
+build doesn't read loads without them: lock codes are a build's own.
+Checked in the emulator only.
+
+### Mod parameters on MIDI (core-ar2 0.8, Analog Rytm MKII)
+
+A lockable parameter is NRPN MSB 4, LSB its lock code - 42, on its track's
+channel (or the auto channel, for the active track), with its value in the
+data entry MSB (above 127: the whole value, in the MSB and the LSB). A
+lockable field declared with `"cc": true` as well also gets a CC, from the
+33 a track's channel leaves unused: 8, 9, 48..63, 65..69, 84, 85,
+110..116, 119, given in that order. Core sets the parameter
+in the track's sound of the current kit when either comes in, clamped to
+the parameter's `min..max`, and sends it when the mod's page knob
+turns it, as stock sends a stock parameter: while PARAM OUTPUT is on, as an
+NRPN or a CC as it is set (MIDI CONFIG > PORT CONFIG; a parameter with no
+CC sends nothing as CC), on the channel stock uses. The mod does nothing
+for this; its knob's `delta` turns the value, and core sends it after.
+
+The CC comes from the lockfile, apart from the code, and stays with the
+field (its mod and `sym`) from build to build, through a resize or a new
+code: a controller mapped to it keeps working. A field that leaves the
+build or drops `"cc"` keeps its CC reserved and gets it back; once the
+never-used CCs run out, the one freed longest ago goes to a new field, and
+when none is left a field gets no CC (the build says so) and is on MIDI by
+its NRPN only. The lockfile keeps them in `ccs` and `freed_ccs`, which are
+not part of the layout ID: CCs say nothing of where data sits. The linker
+writes `{field descriptor, CC}` for each into core's table `core_lock_ccs`.
+The NRPN follows the code, so it is a build's own (Lockable parameters,
+above): a controller mapped to it needs remapping after a build whose
+lockfile gave the parameter another code. Checked in the emulator only.
 
 ### Parameter pages (core-a4 0.2, Analog Four MKII)
 
@@ -2591,6 +2825,18 @@ int32_t my_trig(int32_t track)
   handler. [mods/trig-events-ot](../mods/trig-events-ot/README.md) has the
   sites around it and what was checked.
 
+From trig-events 0.2 the mod also tells of STOP's tail kill:
+
+| event | prototype | |
+|---|---|---|
+| `ev_tail_kill` | `void f(uint8_t *record, unsigned track)` | STOP, STOP, STOP holds `track` (0-7), each frame, before stock tests its FX2 against its three reverbs and zeroes their tails. `record` is the track's 64-byte record its DSP instances read: the halfword at +56 (`OT_REC_FX2_ID`) is the FX2 id stock tests, the byte at +53 (`OT_REC_FX2_SLOT11`) is FX2 SETUP's slot 11, which stock zeroes for its reverbs |
+
+Every handler runs, in `order`; none stops the kill. A handler for an effect
+of its own zeroes that effect's bytes in the record the same way, after
+checking +56. It is the same interrupt level and the same rules as above. The
+event is the one of the same name in Modwerk's Octatrack base; octabam's BBD
+detours its site (`0x40004d0c`) and, converted, is a handler.
+
 ## 3. Path B: a linkable mod
 
 **3.1 Start from the template.** Copy `examples/hello-marker/` to a folder
@@ -3005,7 +3251,7 @@ python -m elekloader.sdk.octabam --octabam octabam --stock OCTATRACK_OS1.40C.syx
   with `--bus`.
 
 **On the intercepts** (`--intercepts`): a detour at one of the intercepts'
-sites (the converter's `INTERCEPTS`: mods/intercepts-ot's 19 events,
+sites (the converter's `INTERCEPTS`: mods/intercepts-ot's 20 events,
 "Intercepts on the Octatrack" above) leaves its site stock and adds the
 record `{0, the detour's label}` to the event's table instead. The stub
 enters the label as the detour's own `jmp` or `jsr` did, so its code runs

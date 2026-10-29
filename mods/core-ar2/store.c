@@ -215,15 +215,19 @@ static int known_id(unsigned id)
     return 0;
 }
 
+/* the image's layout ID: the store's bytes 0..3, which are 4 apart */
+static unsigned store_id(unsigned char *img)
+{
+    return (unsigned)B(store_byte(img, 0)) << 24 | (unsigned)B(store_byte(img, 1)) << 16 |
+           (unsigned)B(store_byte(img, 2)) << 8 | B(store_byte(img, 3));
+}
+
 /* does the image's store hold this scope's data in this layout? */
 static int store_ok(unsigned char *img, int scope)
 {
-    unsigned id;
     if (!img)
         return 0;
-    id = (unsigned)B(store_byte(img, 0)) << 24 | (unsigned)B(store_byte(img, 1)) << 16 |
-         (unsigned)B(store_byte(img, 2)) << 8 | B(store_byte(img, 3));
-    return known_id(id) && B(store_byte(img, 3 + scope)) == gen(scope);
+    return known_id(store_id(img)) && B(store_byte(img, 3 + scope)) == gen(scope);
 }
 
 static void store_header(unsigned char *img)
@@ -428,11 +432,38 @@ int st_locks_save(unsigned char *dst, unsigned char *live, int a)
 
 /* ---- sounds and kits: their own bytes, with their own copy of the ID ---- */
 
+/* The LFO's destination (0.8): stock saves it (live sound +28, a slot) as
+ * the stored sound's +100, an index into a table of stock's 42 parameters,
+ * and loads it back through the inverse table, which has no entry for a
+ * lock code: a mod parameter's would come back as a stock one. So core
+ * keeps the code, less 41, in its own sound field core_lfo_dst (the linker
+ * places it in a build with an "lfo" field; 0, none, otherwise), and the
+ * stored byte gets DST_NONE, stock's own None (META:None, slot 0): stock,
+ * or a build that does not know the code, loads an LFO with no destination,
+ * and keeps it so through its own saves. Neither table has a bound, so a
+ * slot above 41 saved by stock comes back as one of its parameters; and on
+ * load, a slot of 42..127 that core_lfo_dst did not give (a sound from
+ * stock or from another layout) would read as a code, so it loads as None. */
+extern char core_lfo_dst[];
+#define LIVE_DST 28
+#define STORED_DST 100
+#define DST_NONE 41
+struct core_lock_param;
+const struct core_lock_param *core_lock_lfo(unsigned code);
+unsigned core_store_get(unsigned field, void *item, int index);
+void core_store_set(unsigned field, void *item, int index, unsigned value);
+
 int st_sound_save(unsigned char *dst, unsigned char *live, int a)
 {
-    int r = st_sound_save_body(dst, live, a);
+    unsigned f = (unsigned)core_lfo_dst, c = live ? live[LIVE_DST] : 0;
+    int mine = f && c >= 42 && c <= 127 && core_lock_lfo(c), r;
+    if (f && live)
+        core_store_set(f, live, 0, mine ? c - 41 : 0);
+    r = st_sound_save_body(dst, live, a);
     if (dst && live) {
         int j;
+        if (mine)
+            dst[STORED_DST] = DST_NONE;
         for (j = 0; j < 3; j++)
             dst[SOUND_SPARE + j] = live[SOUND_HOME + j];
         for (j = 3; j < SOUND_BYTES; j++)
@@ -453,6 +484,12 @@ int st_sound_load(unsigned char *live, unsigned char *src)
         for (j = 0; j < SOUND_BYTES; j++)
             live[SOUND_HOME + sound_at(j)] =
                 ok ? src[j < 3 ? SOUND_SPARE + j : SOUND_SPARE2 + j - 3] : 0;
+        if (core_lfo_dst) {
+            if (live[LIVE_DST] >= 42 && live[LIVE_DST] <= 127)
+                live[LIVE_DST] = 0;
+            if ((j = core_store_get((unsigned)core_lfo_dst, live, 0)) && core_lock_lfo(j + 41))
+                live[LIVE_DST] = j + 41;
+        }
     }
     return r;
 }
@@ -469,6 +506,8 @@ int st_kit_save(unsigned char *dst, unsigned char *live, int a)
     return r;
 }
 
+void core_kit_forget(unsigned char *kit);
+
 int st_kit_load(unsigned char *live, unsigned char *src)
 {
     int r = st_kit_load_body(live, src), j;
@@ -477,6 +516,10 @@ int st_kit_load(unsigned char *live, unsigned char *src)
                  src[KIT_SPARE + 12] == gen(SC_KIT);
         for (j = 0; j < 8; j++)
             live[KIT_HOME + j] = ok ? src[KIT_SPARE + j] : 0;
+        /* its scenes' and performances' mod entries are its layout's codes
+         * (scenes.c, 0.8) */
+        if (!ok)
+            core_kit_forget(live);
     }
     return r;
 }
@@ -507,12 +550,16 @@ int st_glob_load(unsigned char *live, unsigned char *src)
 
 /* ---- inits: stock leaves the spare bytes as they were ---- */
 
+void core_rows_clear(unsigned obj);
+
 int st_pat_init(unsigned char *pattern, int a)
 {
     int r = st_pat_init_body(pattern, a), j;   /* its track inits go through st_track_init */
-    if (pattern)
+    if (pattern) {
         for (j = 0; j < HOME_BYTES; j++)
             pattern[PATTERN_HOME + j] = 0;
+        core_rows_clear((unsigned)pattern);    /* its mod p-locks (rows.c, 0.8) */
+    }
     return r;
 }
 
@@ -579,11 +626,16 @@ int st_proj_init(void *project, int a, int b, int c)
  * the scopes the loaded image (a file's buffer, else the stored project) had
  * nothing for. A file of an older project version (st_image 0) brings no
  * project data. */
+void core_rows_forget(void);
+
 int st_proj_load(void *live, unsigned char *src, void *progress)
 {
     int r = st_proj_load_body(live, src, progress), g, j, s;
     unsigned char *from = is_image(src) ? src : st_image;
     unsigned dropped = 0;
+    /* its mod p-locks' codes are its layout's (rows.c, 0.8) */
+    if (!from || !known_id(store_id(from)))
+        core_rows_forget();
     for (s = SC_GLOBAL; s <= SC_PROJECT; s++)
         if (!store_ok(from, s))
             dropped |= 1 << s;
@@ -889,4 +941,34 @@ void core_store_set(unsigned field, void *item, int index, unsigned value)
     }
     write_through(scope, item, index);
     irq_restore(sr);
+}
+
+/* After an edit of the live project, a project load asks first (ANY CHANGES
+ * WILL BE LOST. PROCEED WITH LOADING?): stock marks the project modified
+ * (0x400aed98(project, 1), which keeps the mark in the settings block at
+ * 0x405c8e4e) from the UI task, on the project's change signal, and an edit
+ * of only mod fields sends none. core_project_edited asks for the mark from
+ * any task or the audio interrupt; core_edit_tick (ev_tick, the UI task)
+ * makes it, with the project model 0x4017fa0a keeps at 0x419f28a8. Core
+ * calls it for its own edits (a mod page's knob, a lockable parameter's CC
+ * or NRPN, RANDOMIZE PAGE and RELOAD PAGE); a mod calls it after its own
+ * keys or settings change a field. */
+#define PROJECT_MODEL (*(void *volatile *)0x419f28a8)
+#define SET_MODIFIED ((int (*)(void *, int))0x400aed98)
+
+static volatile unsigned char edited;
+
+void core_project_edited(void)
+{
+    edited = 1;
+}
+
+void core_edit_tick(void *ctrl)
+{
+    void *model = PROJECT_MODEL;
+    (void)ctrl;
+    if (!edited || !model)
+        return;
+    edited = 0;
+    SET_MODIFIED(model, 1);
 }
