@@ -254,7 +254,7 @@ A mod's `storage` lists fields: `sym` (a C name), `scope` (`sound`, `kit`,
 sound field `"lock": true` for a lockable parameter (core-ar2 0.8), with
 `"cc": true` for one that also gets a MIDI CC and `"lfo": true` for one that
 is also an LFO destination. Only a core
-that imports `__store_gen` takes them (core-ar2 from 0.2, core-a4); with another
+that imports `__store_gen` takes them (core-ar2 from 0.2, core-a4, core-dn2 from 0.3); with another
 core a mod that declares storage is refused. A scope's room can depend on
 the core's version (a sound's: 24 bits with core-ar2 0.2, 56 from 0.3,
 which is for OS 1.74 only: a 1.73 build has 0.2's 24; 32 with core-a4 0.1). The

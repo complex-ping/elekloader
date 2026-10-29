@@ -304,7 +304,8 @@ CORE_SITES = ((0x40000538, '4eb9400019b0'), (0x4002e464, '4eb94011d5d4'),
               (0x4002e4ca, '4eb94011d60a'), (0x4002f20c, '4eb94002c5c8'),
               (0x4002f256, '4eb94002c55c'), (0x4009ff88, '205248780002'),
               (0x400987a2, '4cef7c7c0018'), (0x4011fc8c, '4fefffbc48d77cfc'),
-              (0x4011f8c4, '52b9466768b0'), (0x4012197a, '47f940207f9e'))
+              (0x4011f8c4, '52b9466768b0'), (0x4012197a, '47f940207f9e'),
+              (0x400dd80a, '4fefffdc48d77c3c'), (0x400dd34e, '4fefffe048d77c1c'))   # 0.3: the sound converters
 
 
 def at(img, addr, n):
@@ -371,7 +372,8 @@ CORE_HOOKS = {0x40000538: ('4eb9', 'boot'), 0x4002e464: ('4eb9', 'core_tick'),
               0x400987a2: ('4ef9', 'core_personalize'),
               0x4011fc8c: ('4ef9', 'core_panel_buttons'),
               0x4011f8c4: ('4eb9', 'core_panel_clock'),
-              0x4012197a: ('4eb9', 'core_sysex')}
+              0x4012197a: ('4eb9', 'core_sysex'),
+              0x400dd80a: ('4ef9', 'st_sound_save'), 0x400dd34e: ('4ef9', 'st_sound_load')}
 
 
 def assert_hooked(new, man):
@@ -382,7 +384,7 @@ def assert_hooked(new, man):
     for a, (op, target) in CORE_HOOKS.items():
         want = op + '%08x' % man['_map'][target]
         assert at(new, a, 6) == want, (hex(a), target, at(new, a, 6), want)
-        if a == 0x4011fc8c:
+        if a in (0x4011fc8c, 0x400dd80a, 0x400dd34e):
             assert at(new, a + 6, 2) == '4e71'  # the eight-byte prologue, NOP-padded
 
 
@@ -486,47 +488,101 @@ def test_hooks_check_links_with_core():
                'settings:HOOK TEST')
 
 
-def test_core_0_2_preserves_the_0_1_control_contract():
-    """0.2 adds its dormant SHARC bridge; every 0.1 control-side byte,
-    address, table and reservation stays the same."""
+def test_core_preserves_the_0_1_control_contract():
+    """0.2 adds its dormant SHARC bridge and 0.3 mod storage; every 0.1
+    control-side site, table, symbol and reservation stays as it was."""
     old = json.loads(need(CORE_01, 'ELEKLOADER_DN2_CORE_01'))
     with tempfile.TemporaryDirectory() as tmp:
         with open(built(os.path.join('mods', 'core-dn2'), tmp)) as fh:
             new = json.load(fh)
-    assert old['version'] == '0.1' and new['version'] == '0.2'
-    for key in ('target', 'sites', 'sections', 'symbols', 'imports', 'exports',
-                'collections', 'contribute', 'relocs', 'resources', 'copied', 'weak'):
+    assert old['version'] == '0.1' and new['version'] == '0.3'
+    for key in ('target', 'contribute', 'copied', 'weak'):
         assert new[key] == old[key], key
+    assert set(new['exports']) - set(old['exports']) == {'core_store_get', 'core_store_set', 'st_sound_save',
+                                                         'st_sound_load', 'st_sound_save_body', 'st_sound_load_body'}
+    assert set(old['exports']) <= set(new['exports'])
+    assert all(site in new['sites'] for site in old['sites'])
+    assert {s['addr'] for s in new['sites']} - {s['addr'] for s in old['sites']} == {'0x400dd80a', '0x400dd34e'}
+    assert all(new['collections'][c] == e for c, e in old['collections'].items())
+    assert set(new['collections']) - set(old['collections']) == {'core_store_ids'}
+    assert all(new['symbols'].get(k) == v for k, v in old['symbols'].items())
+    assert set(old['imports']) <= set(new['imports'])
+    _st, img = stock()
+
+    def run_bytes(doc):                         # .run's parts, the stock runs read from the image
+        return b''.join(bytes.fromhex(p[1]) if p[0] == 'hex' else
+                        img[int(p[1], 16) - DEV.main_load:][:p[2]] for p in doc['sections']['.run']['parts'])
+    assert run_bytes(new)[:old['sections']['.run']['len']] == run_bytes(old)   # store.c and store.s come after
+    assert all(r in new['relocs'] for r in old['relocs'])
     assert 'sharc' not in old and new['sharc']['entries'] is not None
 
 
-def check_control_firmware_identical(old, new, mods):
-    """Keep the version label equal so only core selection can affect bytes."""
-    outputs = []
+STORE_SITES = {0x400dd80a: 8, 0x400dd34e: 8}       # core 0.3's converter hooks
+
+
+def check_control_firmware_kept(old, new, mods):
+    """Keep the version label equal so only core selection can affect bytes:
+    the main OS differs only at 0.3's storage sites and in the appended
+    image (core's own code grew), and the DSP section stays stock."""
+    images = []
     for core in (old, new):
         output, _man = patch.build(SYX, [core] + list(mods), version='CP02', log=lambda *a: None)
         parsed = formats.parse(output['syx'], DEV)
         assert parsed.stored[7] == stock()[0].stored[7]
-        outputs.append(output)
-    assert outputs[0] == outputs[1]
+        images.append(formats.main_image(parsed, DEV))
+    _st, img = stock()
+    sites = {a - DEV.main_load + k for a, n in STORE_SITES.items() for k in range(n)}
+    changed = {i for i in range(len(img)) if images[0][i] != images[1][i]}
+    assert changed <= sites
 
 
-def test_core_0_2_keeps_existing_control_firmware_identical():
+def test_core_keeps_existing_control_firmware():
     need(CORE_01, 'ELEKLOADER_DN2_CORE_01')
     with tempfile.TemporaryDirectory() as tmp:
         core = built(os.path.join('mods', 'core-dn2'), tmp)
-        check_control_firmware_identical(CORE_01, core, [])
+        check_control_firmware_kept(CORE_01, core, [])
         for example in ('hello-marker-dn2', 'hooks-check-dn2'):
             mod = built(os.path.join('examples', example), tmp)
-            check_control_firmware_identical(CORE_01, core, [mod])
+            check_control_firmware_kept(CORE_01, core, [mod])
 
 
-def test_core_0_2_keeps_existing_digihealth_firmware_identical():
+def test_core_keeps_existing_digihealth_firmware():
     need(CORE_01, 'ELEKLOADER_DN2_CORE_01')
     need(DIGIHEALTH, 'ELEKLOADER_DN2_DIGIHEALTH')
     with tempfile.TemporaryDirectory() as tmp:
         core = built(os.path.join('mods', 'core-dn2'), tmp)
-        check_control_firmware_identical(CORE_01, core, [DIGIHEALTH])
+        check_control_firmware_kept(CORE_01, core, [DIGIHEALTH])
+
+
+def test_store_check_links_with_core_0_3():
+    """examples/store-check-dn2: three sound fields fill a sound's 88 bits;
+    the link places them, defines the IDs' table and appends the lockfile.
+    A field past the room, or one of another scope, is refused, and so is
+    storage with a core that does not keep it."""
+    from elekloader import store
+    with tempfile.TemporaryDirectory() as tmp:
+        core = built(os.path.join('mods', 'core-dn2'), tmp)
+        sc = built(os.path.join('examples', 'store-check-dn2'), tmp)
+        outputs, man = patch.build(SYX, [core, sc], version='SC03', log=lambda *a: None)
+        lock = man['store']
+        assert [(f['sym'], f['offset'], f['bits']) for f in lock['fields']] == [
+            ('sc_sound_a', 0, 32), ('sc_sound_b', 32, 32), ('sc_sound_c', 64, 24)]
+        assert man['link']['tables']['core_store_ids']['entries'] == 1
+        new = formats.main_image(formats.parse(outputs['syx'], DEV), DEV)
+        assert_hooked(new, man)
+        assert store.trailer(lock) in bytes(new)
+        with open(sc) as fh:
+            doc = json.load(fh)
+        for bad, why in (([{'sym': 'sc_more', 'scope': 'sound', 'bits': 1}], 'bits of sound storage'),
+                         ([{'sym': 'sc_kit', 'scope': 'kit', 'bits': 8}], 'bits of kit storage'),
+                         ([{'sym': 'sc_trk', 'scope': 'track', 'bits': 8}], 'per track')):
+            d = dict(doc, storage=doc['storage'] + bad)
+            d.pop('signature', None)
+            p = write_mod(tmp, d, 'sc-bad-0.1.elemod')
+            expect(lambda: patch.build(SYX, [core, p], version='SC03', log=lambda *a: None), why)
+        if CORE_01:
+            expect(lambda: patch.build(SYX, [CORE_01, sc], version='SC03', log=lambda *a: None),
+                   'needs core 0.3')
 
 
 def test_sharc_examples_require_and_select_core_0_2():

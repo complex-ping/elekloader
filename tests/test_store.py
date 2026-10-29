@@ -177,6 +177,24 @@ def test_the_analog_four_mk2s_room():
     assert lock['split'] == {'track': 3, 'pattern': 4} and lock['device'] == a4
 
 
+def test_the_digitone_iis_room():
+    """core-dn2 0.3 (mods/core-dn2/store.c): 88 bits a sound, and no other
+    scope; a full sound packs from bit 0."""
+    dn2 = 'digitone-mk2'
+    assert store.supports(dn2)
+    assert store.capacity(dn2, {'track': 0, 'pattern': 0}) == {
+        'sound': 88, 'kit': 0, 'global': 0, 'track': 0, 'pattern': 0, 'project': 0}
+    lock, _ = store.allocate(None, [('a', 'x', 'sound', 32), ('a', 'y', 'sound', 32), ('b', 'z', 'sound', 24)], dn2)
+    assert [(f['sym'], f['offset']) for f in lock['fields']] == [('x', 0), ('y', 32), ('z', 64)]
+    assert lock['device'] == dn2 and lock['split'] == {'track': 0, 'pattern': 0}
+    assert 'sound' in refused(store.allocate, None, [('a', 'x', 'sound', 32), ('a', 'y', 'sound', 32),
+                                                     ('a', 'z', 'sound', 25)], dn2)
+    for scope in ('kit', 'global', 'project'):
+        assert scope in refused(store.allocate, None, [('a', 'x', scope, 1)], dn2)
+    for scope in ('track', 'pattern'):
+        assert 'per ' + scope in refused(store.allocate, None, [('a', 'x', scope, 1)], dn2)
+
+
 def test_ancestors_keep_the_newest_15():
     lock, _ = store.allocate(None, [], DEV)
     seen = [lock['id']]

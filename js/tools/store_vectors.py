@@ -69,6 +69,14 @@ DEV_RUNS = {
                                                 [F('a', 't1', 'track', 16), F('a', 't2', 'track', 9)],
                                                 [F('a', 't1', 'track', 16), F('a', 't2', 'track', 9),
                                                  F('a', 't3', 'track', 32), F('a', 't4', 'track', 32)]]),
+    # the Digitone II (core-dn2 0.3): 88 bits a sound, no other scope
+    'dn2: sound room': ('digitone-mk2', [[F('a', 's1', 'sound', 32), F('a', 's2', 'sound', 32)],
+                                         [F('a', 's1', 'sound', 32), F('a', 's2', 'sound', 32),
+                                          F('b', 's3', 'sound', 24)],
+                                         [F('a', 's1', 'sound', 32), F('a', 's2', 'sound', 32),
+                                          F('b', 's3', 'sound', 25)]]),
+    'dn2: no kit, track or project': ('digitone-mk2', [[F('a', 'k', 'kit', 1)], [F('a', 't', 'track', 1)],
+                                                       [F('a', 'p', 'project', 1)]]),
 }
 # a lockfile a core 0.3 build made, with a sound field past bit 24, then built with core 0.2
 LATE = {'core 0.3 then 0.2': ([F('a', 's', 'sound', 24), F('b', 's2', 'sound', 8)],

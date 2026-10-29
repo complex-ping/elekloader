@@ -216,7 +216,8 @@ The sites core owns (do not patch them):
   0x40033dde, 0x400a5eac, 0x4009e2a2;
 - Digitone II 1.12: 0x40000538, 0x4002e464, 0x4002e4ca, 0x4002f20c,
   0x4002f256, 0x4009ff88, 0x400987a2, 0x4011fc8c, 0x4011f8c4,
-  0x4012197a;
+  0x4012197a, and from core-dn2 0.3 0x400dd80a and 0x400dd34e (mod
+  storage);
 - Analog Rytm MKII 1.73: 0x400008c0, 0x400a2bee, 0x400a2c56, 0x400a47cc,
   0x400a4816, 0x400db87e, 0x4011fb02, 0x40121656;
 - Analog Rytm MKII 1.74: 0x400008c0, 0x400a2c5a, 0x400a2cc2, 0x400a4838,
@@ -285,6 +286,44 @@ stack and the firmware's size limits. They cannot prove what the
 instructions do, what they write, or that they meet the audio deadline.
 [SHARC-DN2.md](SHARC-DN2.md) has what the emulator and a unit showed for
 the sine variants, and the limits that remain.
+
+### Mod storage (core-dn2 0.3, Digitone II)
+
+From core-dn2 0.3 a Digitone II mod can keep values in each sound: 88 bits a
+sound, and no other scope. Declare the fields in mod.json and ask for the
+core:
+
+```json
+"storage": [{"sym": "my_depth", "scope": "sound", "bits": 7}],
+"resources": {"core": "0.3"}
+```
+
+and read and write them through core, with
+`elekloader/sdk/include/digitone-mk2/store.h`:
+
+```c
+#include "digitone-mk2/store.h"
+STORE_FIELD(my_depth);
+unsigned v = core_store_get(STORE(my_depth), DN2_LIVE_SOUND(track), 0);
+core_store_set(STORE(my_depth), DN2_LIVE_SOUND(track), 0, v + 1);
+```
+
+The item is a live sound (track t's is `DN2_LIVE_SOUND(t)`); the index is
+unused. Both calls mask interrupts while they read or write a field: call
+them from any context, the audio interrupt too.
+
+| | |
+|---|---|
+| live home | 11 bytes of the live sound (+0x180..+0x18a) that stock never reads or writes, so copy, paste, undo and every whole-sound copy carry them |
+| saved home | the 16 bytes of the stored sound's values that stock never writes (lock ids 4, 8 .. 32: the fourth LFO's rank): the layout ID, the sound generation, then the 11 bytes |
+| saved and loaded | by core's wraps of the two sound converters, so the project, a kit, the pool, a sound file and a sound's SysEx all carry them |
+| written through | `core_store_set` on a kit's sound or a pool sound also writes the stored copy in the project image the OS keeps in RAM, as a stock edit does, so the field survives a power cycle without a save |
+
+Zero is always the default: a new sound reads 0 (initialising a sound clears
+the bytes), and so does a sound from the stock OS or from a build with
+another layout. A sound saved with mods loads on the stock OS unchanged. The
+[store check](../examples/store-check-dn2/README.md) example fills the 88
+bits.
 
 ### The hook bus on the Octatrack (core-ot 0.2)
 

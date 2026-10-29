@@ -68,6 +68,14 @@ const DEVICES: Record<string, Spec> = {
     items: { track: 129 * 6, pattern: 129 },
     split: { track: 2, pattern: 4 },
   },
+  'digitone-mk2': {                             // core-dn2 0.3 (mods/core-dn2/store.c): sounds only
+    fixed: { sound: 88, kit: 0, global: 0 },
+    coreFixed: [],
+    live: { track: 0, pattern: 0 },
+    store: 0,
+    items: { track: 0, pattern: 0 },
+    split: { track: 0, pattern: 0 },
+  },
 }
 
 export const supports = (devKey: string) => Object.hasOwn(DEVICES, devKey)

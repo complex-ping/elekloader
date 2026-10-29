@@ -135,6 +135,13 @@ DEVICES = {
         'items': {'track': 129 * 6, 'pattern': 129},
         'split': {'track': 2, 'pattern': 4},
     },
+    'digitone-mk2': {                               # core-dn2 0.3 (mods/core-dn2/store.c): sounds only
+        'fixed': {'sound': 88, 'kit': 0, 'global': 0},
+        'live': {'track': 0, 'pattern': 0},
+        'store': 0,
+        'items': {'track': 0, 'pattern': 0},
+        'split': {'track': 0, 'pattern': 0},
+    },
 }
 
 

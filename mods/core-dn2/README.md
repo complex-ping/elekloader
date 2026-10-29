@@ -18,6 +18,37 @@ made for 0.1 can keep asking for 0.1. The [machines-dn2](../machines-dn2)
 companion adds selectable synths and filters on top of it
 ([MACHINES-DN2.md](../../docs/MACHINES-DN2.md)).
 
+Core **0.3** adds mod storage in each sound (`store.c`, `store.s`;
+[docs/ADAPTING.md](../../docs/ADAPTING.md), "Mod storage (core-dn2 0.3,
+Digitone II)") and keeps 0.2's sites, tables and exports. Two more sites
+jump from the sound converters' first eight bytes (`lea`, `movem.l`, both
+replayed in `store.s`) to core's wraps:
+
+| site | converter | core |
+|---|---|---|
+| 0x400dd80a | save (stored, live, a) | `st_sound_save`: stock's body, then the layout ID, the sound generation and the 11 bytes into the stored values of lock ids 4, 8 .. 32 |
+| 0x400dd34e | load (live, stored) | `st_sound_load`: stock's body, then the 11 bytes (zeros for another layout or generation), and the live value slot 0, where stock's load folds those ids, back to 0 |
+
+`core_store_set` also writes the field's sound into its stored copy in the
+project image the OS keeps in RAM (what SAVE PROJECT writes and a power
+cycle brings back), with the layout ID and the generation, as stock writes
+each parameter edit there. The live and the stored sounds are arrays, read
+from the boot's converter calls, which pair every one:
+
+| | live | stored |
+|---|---|---|
+| kits (the working kit, then the 128), 16 sounds each | 0x4210d0c0 + 23921 kit + 1163 track | 0x410aeba8 + 10752 kit + 359 track |
+| pool, 128 sounds | 0x4240dbcb + 1163 i | 0x41201570 + 359 i |
+
+What the store relies on, checked in an emulator on stock 1.12: stock reads
+or writes a live sound only up to +0x176 (the arpeggiator's offsets end at
++0x175), playing with the arpeggiator on, through every page's knobs,
+machine changes and both converters; initialising a sound (0x400e7fca)
+clears the bytes after it; a stock save leaves the 16 stored bytes 0, and
+a load of nonzero ones changes only the live value slot 0. On a unit,
+with store-check: the markers of all 16 tracks are back after a power cycle
+without a save, read over USB.
+
 `bridge.sharc.json` is the bridge, already compiled and linked from
 `sharc-bridge.s`, with the slot and pitch reader the
 [sine example](../../examples/sharc-sine/README.md) relies on. The linker

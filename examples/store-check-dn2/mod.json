@@ -1,0 +1,25 @@
+{
+ "id": "store-check",
+ "version": "0.1",
+ "title": "Store check",
+ "category": "Examples",
+ "license": "GPL-2.0-or-later",
+ "description": "The smallest user of core-dn2's mod storage (0.3): three fields fill a sound's 88 bits, and STORE CHECK in SETTINGS writes a marker into them in every track's sound. Three columns at the bottom of the screen show how many markers no longer read back.",
+ "device": "digitone-mk2",
+ "os": "1.12",
+ "sources": ["check.c", "../store-check-ar2/label.s"],
+ "cflags": ["-DFILLRECT_AT=0x40114b22"],
+ "defsym": {"STRING_CTOR": "0x401ceab8"},
+ "storage": [
+  {"sym": "sc_sound_a", "scope": "sound", "bits": 32},
+  {"sym": "sc_sound_b", "scope": "sound", "bits": 32},
+  {"sym": "sc_sound_c", "scope": "sound", "bits": 24}
+ ],
+ "subscribe": [
+  {"event": "ev_tick", "fn": "sc_tick", "order": 60},
+  {"event": "ev_draw", "fn": "sc_draw", "order": 60},
+  {"event": "ev_settings", "fn": "sc_settings", "order": 60}
+ ],
+ "resources": {"names": ["settings:STORE CHECK"], "core": "0.3"},
+ "requires": ["core"]
+}
