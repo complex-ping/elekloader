@@ -88,6 +88,9 @@ export class Mod2 implements AnyMod {
   contribute: Contribution[]
   copied: [number, number, number][]
   storage: [string, string, number][]
+  locks: string[]
+  ccs: string[]
+  lfos: string[]
   regions: Region[]
   names: string[]
   needsCore: string | null
@@ -188,6 +191,9 @@ export class Mod2 implements AnyMod {
     })
     try {
       this.storage = store.parseDecls(doc)
+      this.locks = store.parseLocks(doc)
+      this.ccs = store.parseCcs(doc)
+      this.lfos = store.parseLfos(doc)
     } catch (e) {
       if (e instanceof ModError) throw new ModError(`${name}: ${e.message}`)
       throw e
@@ -444,7 +450,7 @@ export function check(mods: Mod2[], image: Uint8Array): string[] {
       fields.set(sym, m)
     }
   }
-  if (tables.has(store.IDS_TABLE)) for (const x of store.GEN_SYMS) fields.set(x, null)
+  if (tables.has(store.IDS_TABLE)) for (const x of [...store.GEN_SYMS, store.LOCK_DST]) fields.set(x, null)
   for (const m of mods) {
     for (const x of m.imports) {
       if (owner.has(x) || tables.has(x) || LINKER_SYMS.has(x) || sized.has(x) || m.weak.has(x)
@@ -665,9 +671,27 @@ export function link(mods: Mod2[], image: Uint8Array, lock: store.Lock | null = 
   }
   if (keeps) {
     if (!tables.has(store.IDS_TABLE)) throw new ModError(`${core.label()} imports ${store.GEN_SYMS[0]} but declares no table ${store.IDS_TABLE}`)
-    ;[newLock, storeNotes] = store.allocate(lock, decls, dev.key, core.version)
+    const locks = order.flatMap(m => m.locks.map(sym => [m.id, sym] as [string, string]))
+    if (locks.length && !tables.has(store.CODES_TABLE)) {
+      const users = [...new Set(locks.map(k => k[0]))].sort(cmp)
+      throw new ModError(`${users.join(', ')} declare${users.length === 1 ? 's' : ''} lockable parameters, which ${core.label()} does not keep (no table ${store.CODES_TABLE})`)
+    }
+    const lfos = order.flatMap(m => m.lfos.map(sym => [m.id, sym] as [string, string]))
+    if (lfos.length && core.imports.includes(store.LOCK_DST) && store.lockDstBits(dev.key))
+      // the core keeps a code as an LFO destination
+      decls.push([core.id, store.LOCK_DST, 'sound', store.lockDstBits(dev.key)])
+    const ccs = order.flatMap(m => m.ccs.map(sym => [m.id, sym] as [string, string]))
+    if (ccs.length && !tables.has(store.CCS_TABLE)) {
+      const users = [...new Set(ccs.map(k => k[0]))].sort(cmp)
+      throw new ModError(`${users.join(', ')} give${users.length === 1 ? 's' : ''} lockable parameters CCs, which ${core.label()} does not keep (no table ${store.CCS_TABLE})`)
+    }
+    ;[newLock, storeNotes] = store.allocate(lock, decls, dev.key, core.version, locks, ccs)
     let ids: Uint8Array[]
     ;[storeSyms, ids] = store.symbols(newLock)
+    if (!storeSyms.has(store.LOCK_DST)) storeSyms.set(store.LOCK_DST, 0)    // not placed: no LFO field
+    for (const [table, made] of [[store.CODES_TABLE, (l: store.Lock) => store.codeEntries(l, lfos)], [store.CCS_TABLE, store.ccEntries]] as const)
+      if (tables.has(table))
+        made(newLock).forEach((data, i) => entries.get(table)!.push([-1, '', i, core, { to: table, order: -1, data, relocs: [], claims: [], i }]))
     const taken = new Set(order.flatMap(m => m.exports))
     for (const nm of storeSyms.keys())
       if (taken.has(nm) || LINKER_SYMS.has(nm)) throw new ModError(`the storage field ${nm} has the name of a symbol a mod exports`)

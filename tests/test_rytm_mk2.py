@@ -131,6 +131,11 @@ def test_core_ar2_sites():
     for s in mod['sites']:
         a, want = int(s['addr'], 16), bytes.fromhex(s['stock'])
         assert img[a - DEV.main_load:a - DEV.main_load + len(want)] == want, s
+        if s['op'] == 'ptr':            # data: the sound set's vtable entries, not code: +76
+            # (0.8, the slot id) and +60..+72 (0.8, the lock get, set, clear and turn)
+            ptrs = {76: 0x400a86dc, 60: 0x400a98b4, 64: 0x400a9926, 68: 0x400a99c2, 72: 0x400a8560}
+            assert a - 0x401dce24 in ptrs and want == ptrs[a - 0x401dce24].to_bytes(4, 'big'), s
+            continue
         ok, note = elemod.insn_check(img, a, len(want), DEV)
         assert ok, (s, note)
     d = mod['defsym']
@@ -182,12 +187,82 @@ def test_core_ar2_sites():
     o = 0x400cbd3e + 2 + 0x10 - DEV.main_load                # the branch skips setsel(view, 0)
     assert img[o - 16:o] == bytes.fromhex('20532250 42a72f08 20690060 4e90508f'.replace(' ', '')), x
     # mod storage's sites (core-ar2 0.3: 32 of the 40), the 4 page sites,
-    # the 10 view sites, the step and the FX keep, and 0.7's OS upgrade restart
-    assert len(mod['sites']) == 57
+    # the 10 view sites, the step and the FX keep, 0.7's OS upgrade restart, the 13 lock
+    # sites (0.8), the 18 lock row sites (0.8), the 7 scene and performance sites (0.8)
+    # and the NRPN and CC in sites (0.8)
+    assert len(mod['sites']) == 97
+    lock = {int(x['addr'], 16): (x['op'], x['target']) for x in mod['sites']
+            if x.get('target') in ('core_lfo_apply', 'core_id_slot', 'core_dst_list_end', 'core_dst_label',
+                                   'core_dst_text', 'core_dst_slot_id', 'core_rand_param', 'core_reload',
+                                   'core_knob_label', 'core_knob_name')}
+    assert lock == {0x4009eac0: ('jmp', 'core_lfo_apply'), 0x40006ea8: ('jmp', 'core_id_slot'),
+                    0x400aa31e: ('jmp', 'core_dst_list_end'), 0x4004a7e8: ('jmp', 'core_dst_label'),
+                    0x400ffab2: ('jmp', 'core_dst_text'), 0x401dce70: ('ptr', 'core_dst_slot_id'),
+                    0x400aa32a: ('jmp', 'core_rand_param'), 0x400af32c: ('jmp', 'core_reload'),
+                    0x40037c1a: ('jsr', 'core_knob_label'), 0x40037d42: ('jsr', 'core_knob_label'),
+                    0x400d37fa: ('jsr', 'core_knob_label'),
+                    0x4003a1c6: ('jsr', 'core_knob_name'), 0x4003a8d6: ('jsr', 'core_knob_name')}, lock
+    for x in mod['sites']:                  # a knob label site calls stock's label
+        if x.get('target') == 'core_knob_label':
+            a = int(x['addr'], 16)
+            assert x['stock'] == '4eb9400a9000' and img[a - DEV.main_load:a + 6 - DEV.main_load].hex() == x['stock'], x
     x = [x for x in mod['sites'] if x.get('target') == 'core_finish_drain'][0]
     a = int(x['addr'], 16)                  # move #0x2700,sr then jsr to the drain wait
     assert x['op'] == 'jsr' and img[a - DEV.main_load:a + 10 - DEV.main_load].hex() == x['stock'], x
     assert x['stock'] == '46fc27004eb9' + d['FINISH_DRAIN'][2:], x
+    # the lock rows (0.8): the routines that move and clear step records and
+    # list a step's locks, their first instructions as stock has them, and
+    # the sound set's lock get, set, clear and turn
+    rows = {int(x['addr'], 16): (x['op'], x['target'], x['stock']) for x in mod['sites']
+            if x.get('target') in ('core_memcpy', 'core_row_load', 'core_rebuild', 'core_trig_locks',
+                                   'core_lock_get_vt', 'core_lock_set_vt', 'core_lock_clear_vt',
+                                   'core_lock_turn_vt', 'core_memset', 'core_new', 'core_new_array',
+                                   'core_track_clear', 'core_step_clear', 'core_trig_list',
+                                   'core_euclid_list', 'core_lock_paste', 'core_dump_out',
+                                   'core_dump_check')}
+    assert rows == {0x40098bc0: ('jmp', 'core_memcpy', '226f0004206f0008'),
+                    0x40098c08: ('jmp', 'core_memset', '206f000871af000b'),
+                    0x40082a40: ('jmp', 'core_new', '4ef9400827c4'),
+                    0x40082a46: ('jmp', 'core_new_array', '4ef9400827c4'),
+                    0x4001197c: ('jmp', 'core_track_clear', '4feffff048d70c0c'),
+                    0x400ac86e: ('jmp', 'core_step_clear', '4fefffe448d704fc'),
+                    0x400c4d62: ('jmp', 'core_trig_list', '286effac202c0008'),
+                    0x400c3eb0: ('jmp', 'core_euclid_list', '2f022e3c400c070a'),
+                    0x400c058c: ('jmp', 'core_lock_paste', '4feffff448d7040c'),
+                    0x4000eff2: ('jsr', 'core_dump_out', '4eb94000937c'),
+                    0x4000d79c: ('jmp', 'core_dump_check', '2f4200102f43000c'),
+                    0x40008f98: ('jmp', 'core_row_load', '4fefffdc48d73c7c'),
+                    0x40009216: ('jmp', 'core_rebuild', '4fefffd048d77cfc'),
+                    0x4009a954: ('jmp', 'core_trig_locks', '42404fefffe0'),
+                    0x401dce60: ('ptr', 'core_lock_get_vt', '400a98b4'),
+                    0x401dce64: ('ptr', 'core_lock_set_vt', '400a9926'),
+                    0x401dce68: ('ptr', 'core_lock_clear_vt', '400a99c2'),
+                    0x401dce6c: ('ptr', 'core_lock_turn_vt', '400a8560')}, rows
+    for a, (_op, _t, b) in rows.items():
+        assert img[a - DEV.main_load:a - DEV.main_load + len(b) // 2] == bytes.fromhex(b), hex(a)
+    # scenes and performances (0.8): a knob's turn and push on a parameter
+    # view, the audio side's two list builds (an entry's code read where
+    # stock reads it), the kit file's code translations both ways and the
+    # kit's SysEx dump
+    scenes = {int(x['addr'], 16): (x['op'], x['target'], x['stock']) for x in mod['sites']
+              if x.get('target') in ('core_scene_turn_site', 'core_scene_push_site', 'core_perf_entry',
+                                     'core_scene_entry', 'core_code_id', 'core_id_code', 'core_kit_dump_out')}
+    assert scenes == {0x400385f8: ('jmp', 'core_scene_turn_site', '4fefffd048d70cfc'),
+                      0x400387ba: ('jmp', 'core_scene_push_site', '4fefffd048d71c3c'),
+                      0x4011f744: ('jsr', 'core_perf_entry', '12290003760c'),
+                      0x4011f844: ('jsr', 'core_scene_entry', '7528000410280002'),
+                      0x40007602: ('jmp', 'core_code_id', '2f02740c222f0008'),
+                      0x400075c8: ('jmp', 'core_id_code', '2f02740c222f0008'),
+                      0x4000f2a2: ('jsr', 'core_kit_dump_out', '4eb9400088d6')}, scenes
+    for a, (_op, _t, b) in scenes.items():
+        assert img[a - DEV.main_load:a - DEV.main_load + len(b) // 2] == bytes.fromhex(b), hex(a)
+    # MIDI (0.8): a track's NRPN in and CC in, their first instructions as stock has them
+    midi = {int(x['addr'], 16): (x['op'], x['target'], x['stock']) for x in mod['sites']
+            if x.get('target') in ('core_nrpn_site', 'core_cc_site')}
+    assert midi == {0x400b2b26: ('jmp', 'core_nrpn_site', '4fefffe448d70c7c'),
+                    0x400b0544: ('jmp', 'core_cc_site', '4fefffec48d7043c')}, midi
+    for a, (_op, _t, b) in midi.items():
+        assert img[a - DEV.main_load:a - DEV.main_load + 8] == bytes.fromhex(b), hex(a)
     # the audio load (0.4): core times its own render events, first in and last out
     sub = {x['event']: x for x in mod['subscribe']}
     assert sub['ev_render_in']['fn'] == 'core_load_in' and sub['ev_render_in']['order'] == 0
