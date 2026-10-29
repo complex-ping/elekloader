@@ -319,14 +319,24 @@ unsigned core_param_track(unsigned field, int track)
     return core_param_value(field, (void *)(*(volatile unsigned *)LIVE + 52 + 1163 * track));
 }
 
+int core_lfo_sum(unsigned voice, unsigned code);                     /* lfo.c */
+unsigned core_param_range(const struct core_param *p, unsigned *min);   /* params.c */
+
+/* + the voice's LFOs on it, scaled from 0..127 to the parameter's range */
 unsigned core_param_voice(unsigned field, int voice)
 {
-    int c = code_of(field);
+    int c = code_of(field), v, d;
+    unsigned min, range;
     if (c < 0 || voice < 0 || voice >= VOICES || !voice_track[voice])
         return 0;
-    if (voice_mask[voice] >> c & 1)
-        return voice_value[voice][c];
-    return core_param_value(field, (void *)(*(volatile unsigned *)LIVE + 52 + 1163 * (voice_track[voice] - 1)));
+    v = voice_mask[voice] >> c & 1 ? voice_value[voice][c]
+        : core_param_value(field, (void *)(*(volatile unsigned *)LIVE + 52 + 1163 * (voice_track[voice] - 1)));
+    d = core_lfo_sum(voice, FIRST_CODE + c);
+    if (!d)
+        return v;
+    range = core_param_range(core_param_of(FIRST_CODE + c), &min);
+    v += d * (int)range / (127 * 256);
+    return v < (int)min ? min : v > (int)(min + range) ? min + range : (unsigned)v;
 }
 
 int core_voice_track(int voice)

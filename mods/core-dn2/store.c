@@ -132,11 +132,16 @@ static void put_stored(unsigned char *dst, const volatile unsigned char *live)
         dst[stored_at(5 + j)] = live[SOUND_HOME + j];
 }
 
+void core_dest_save(unsigned char *stored, const unsigned char *live);   /* lfo.c: a DEST of a mod parameter */
+void core_dest_load(unsigned char *live, const unsigned char *stored);
+
 int st_sound_save(unsigned char *dst, unsigned char *live, int a)
 {
     int r = st_sound_save_body(dst, live, a);
-    if (dst && live)
+    if (dst && live) {
         put_stored(dst, live);
+        core_dest_save(dst, live);
+    }
     return r;
 }
 
@@ -153,6 +158,7 @@ int st_sound_load(unsigned char *live, unsigned char *src)
             live[SOUND_HOME + j] = ok ? src[stored_at(5 + j)] : 0;
         live[LIVE_SLOT0] = 0;
         live[LIVE_SLOT0 + 1] = 0;
+        core_dest_load(live, src);
     }
     return r;
 }

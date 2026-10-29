@@ -218,9 +218,9 @@ The sites core owns (do not patch them):
   0x4002f256, 0x4009ff88, 0x400987a2, 0x4011fc8c, 0x4011f8c4,
   0x4012197a, from core-dn2 0.3 0x400dd80a and 0x400dd34e (mod
   storage), and from 0.4 0x40000568, 0x400c257c, 0x400c25d8, 0x400614e2,
-  0x4005cc0e, 0x4003717c, 0x40037bd0 and the parameter table's 56
-  references and 54 bounds (mod parameters; mods/core-dn2/mod.json lists
-  them);
+  0x4005cc0e, 0x4003717c, 0x40037bd0, the parameter table's 56
+  references and 54 bounds, and the p-lock and LFO sites (mod parameters;
+  mods/core-dn2/README.md lists them);
 - Analog Rytm MKII 1.73: 0x400008c0, 0x400a2bee, 0x400a2c56, 0x400a47cc,
   0x400a4816, 0x400db87e, 0x4011fb02, 0x40121656;
 - Analog Rytm MKII 1.74: 0x400008c0, 0x400a2c5a, 0x400a2cc2, 0x400a4838,
@@ -364,7 +364,8 @@ const struct core_page my_page = {"MINE", {STORE(my_depth), 0, 0, 0, 0, 0, 0, 0}
 | the pages | up to 8, in `core_pages` order, after [FX]'s own; the header counts them (FX 1/n) |
 | what works | turning the knob, its picture and value, the sound's copy, save and load (mod storage) |
 | p-locks | recorded, shown and cleared as stock's; trig, page and track copy and paste, undo, the track swap; saved with the pattern as records a stock OS skips |
-| the value playing | `core_param_track(field, track)`: the track's playing lock (from its last trig, until a knob turn or its next trig), else its sound's; `core_param_voice(field, voice)` the same for a voice |
+| an LFO destination | in the LFOs' DEST menu (at the end, with its group); the modulation reaches `core_param_voice`; a DEST is saved as no destination for a stock OS |
+| the value playing | `core_param_track(field, track)`: the track's playing lock (from its last trig, until a knob turn or its next trig), else its sound's; `core_param_voice(field, voice)` the same for a voice, with its LFOs |
 
 The [param check](../examples/param-check-dn2) example has two knobs on one
 page.

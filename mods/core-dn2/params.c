@@ -109,6 +109,12 @@ unsigned core_param_clamp(const struct core_param *p, unsigned value)
     return value < p->min ? p->min : value > p->max ? p->max : value;
 }
 
+unsigned core_param_range(const struct core_param *p, unsigned *min)
+{
+    *min = p->min;
+    return p->max - p->min;
+}
+
 void core_lock_end(void *sound, unsigned code);
 
 unsigned core_param_code(unsigned field)

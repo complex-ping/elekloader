@@ -330,7 +330,13 @@ CORE_SITES = ((0x40000538, '4eb9400019b0'), (0x4002e464, '4eb94011d5d4'),
               (0x400de8c2, '7810b883660622341c00600422331c00108111420001'),
               (0x400de6f8, '786a7380b881655a7383183c000fb8816550'),
               (0x400d874c, '4fefffe87065'),
-              (0x40026c20, '206effdc20280054'))
+              (0x40026c20, '206effdc20280054'),
+              # 0.4: LFO destinations: the evaluator, the DEST walk, slot -> row, the per-edit DEST write
+              (0x40137d6e, '72647f4225470068b2876538'),
+              (0x400395b6, '52827265b28266cc'),
+              (0x400dc18e, '2f027264206f0008'),
+              (0x4004cb16, 'e0812f0142a74eb9400dce5e508f2200e189'),
+              (0x4004cb82, 'e0812f0142a74e95508f2200e189'))
 PARAM_SITES = {a: len(b) // 2 for a, b in CORE_SITES[12:]}
 PARAM_SITES[0x400d8b14] = 2             # the builder for every note: beq -> nop
 STOCK_ROWS = 0x401f83a4                 # the parameter table core 0.4 moves into core_rows
@@ -437,7 +443,12 @@ CORE_HOOKS = {0x40000538: ('4eb9', 'boot'), 0x4002e464: ('4eb9', 'core_tick'),
               0x400de8c2: ('4ef9', 'core_save_rec'),
               0x400de6f8: ('4ef9', 'core_load_rec'),
               0x400d874c: ('4ef9', 'core_build_stub'),
-              0x40026c20: ('4eb9', 'core_note_stub')}
+              0x40026c20: ('4eb9', 'core_note_stub'),
+              0x40137d6e: ('4ef9', 'core_lfo_stub'),
+              0x400395b6: ('4ef9', 'core_dest_walk'),
+              0x400dc18e: ('4ef9', 'core_slot_row'),
+              0x4004cb16: ('4eb9', 'core_dest_store'),
+              0x4004cb82: ('4eb9', 'core_dest_store')}
 
 
 def assert_hooked(new, man):

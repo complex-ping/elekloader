@@ -63,6 +63,19 @@ record is `{code, track | 0x20}`: a stock OS's load skips it. Core takes:
 | 0x400d874c, 0x400d8b14 | the lock-list builder, and the test that skips it on a step without stock locks | the step's codes into the list's last 40 bytes; run for every note |
 | 0x40026c20 | the note path's lock step (a voice reset to its sound) | the voice's and its track's playing codes |
 
+Mod parameters are LFO destinations (`lfo.c`, `lfo.s`). A DEST is a stock
+parameter (slots 4, 12, 20) holding the destination's slot; a code is saved
+as `{0, code}` (id 0, slot 0 on a stock OS: no destination).
+
+| site | stock | core |
+|---|---|---|
+| 0x40137d6e | the LFO evaluator's DEST bound (0..100) | a code's modulation into `core_lfo_delta` (per voice and LFO), without the EMAC |
+| 0x400395b6 | the DEST list's walk over slots 0..100 | 0..127 |
+| 0x400dc18e | the slot -> row lookup | a registered code's row |
+| 0x4004cb16, 0x4004cb82 | the per-edit write of a DEST into the project image | `{0, code}` for a code |
+
+The converters' wraps (`store.c`) save and load a code's DEST the same way.
+
 `core_store_set` also writes the field's sound into its stored copy in the
 project image the OS keeps in RAM (what SAVE PROJECT writes and a power
 cycle brings back), with the layout ID and the generation, as stock writes
