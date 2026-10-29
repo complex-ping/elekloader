@@ -158,6 +158,44 @@ These checks cover the packaging. They cannot prove what the instructions
 do, how much stack they really use, or that they finish in time, so test
 each program on its own.
 
+### Digitone II SHARC blocks
+
+A larger DSP mod, one that adds code and data in several places and hooks
+stock DSP code where it needs to, uses a **blocks** payload. Its `sharc`
+object has exactly these fields:
+
+| field | value |
+|---|---|
+| `abi` | `"dn2-blocks-v1"` |
+| `loads` | `[{"target", "hex"}]`: new load records, at loader-byte addresses, bytes in loader order |
+| `fills` | `[{"target", "size_bytes", "word"}]`: new fill records |
+| `patches` | `[{"target", "stock", "hex"}]`: stock DSP instructions replaced in place: the stock bytes, then the new ones |
+
+Nothing is relocated: link your code for the addresses you load it at.
+
+**Where.** Loads and fills go in the profile's blocks ranges: L2
+`[0x20088400,0x200c0000)` and DDR `[0x80a00000,0x81000000)` (VISA code in
+DMC0) and `[0x84000000,0x85000000)`, outside the protected ranges, four-byte
+aligned, never over a stock load or fill. A patch may replace stock bytes in
+exactly one stock load record anywhere but the protected ranges and the
+sites the profile qualifies for its own adapters (the hooks core and
+machines-dn2 use, and any exact data sites); its `stock` bytes must be what
+the stream holds there.
+
+**With other mods.** Several blocks mods combine with each other and with a
+master-output, synth or filter mod as long as no two of them use the same
+DSP memory or patch the same bytes, and no patch falls inside another
+mod's new records. The linker adds the blocks mods' records after the
+others', in mod order.
+
+**Size.** A blocks mod is still held to the profile's section-7 limits. A
+build that also has `dsp-upload-dn2` (resource name `dn2-dsp-upload-1536k`)
+raises them to a stored section of 1.5 MiB and a decoded one of 1.5 MiB - 1:
+that mod raises the main OS's two upload buffers and its two size checks.
+
+These checks cover the packaging. They cannot tell what the code does or
+how long it takes; test each build in an emulator and on a unit.
+
 ### The linker
 
 1. **Checks.** Everything in "Checks" below. Nothing is linked unless all

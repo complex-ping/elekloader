@@ -116,6 +116,18 @@ DEVICE = Device(
                                       'zero': ((1008, 16),),
                                       'entries': {'hook_offset_bytes': 12}, 'stack_bytes': 116},
                 'hook': (0x2838489a, '8715ffff78ff', '3e06160006eb'),
+                # Blocks mods (docs/FORMAT.md, "Digitone II SHARC blocks"): new load / fill records in these loader-byte
+                # ranges, and stock-guarded patches of stock code. Free by use on units: FXP2 builds M10-M80 (OS 1.11,
+                # whose section 7 is byte-identical to 1.12's) loaded code and data at 0x20088400-0x200BDD00 and DDR
+                # 0x80A00000 (VISA code in DMC0) / 0x84000000. M50 showed L2 at 0x200C0000 and above is not free.
+                'blocks_abi': 'dn2-blocks-v1',
+                'blocks_ranges': ((0x20088400, 0x200c0000), (0x80a00000, 0x81000000), (0x84000000, 0x85000000)),
+                # The main OS's DSP upload (0x400cf6b0..0x400cf748) allocates two 1 MiB buffers and refuses a stored
+                # section over 1 MiB or a decoded one over 1 MiB - 1. dsp-upload-dn2 raises all four to 1.5 MiB
+                # (units since FXP2 M50: a decoded 1,467,100-byte section boots); a build with it gets these limits.
+                'upload_raise': ('dn2-dsp-upload-1536k', 0x180000, 0x17ffff,
+                                 ((0x400cf6b0, '2f3c00100000', '2f3c00180000'), (0x400cf6da, '2f3c00100000', '2f3c00180000'),
+                                  (0x400cf710, '0c8000100000', '0c8000180000'), (0x400cf748, '0c8200100000', '0c8200180000'))),
             })
     },
     main_section=3,

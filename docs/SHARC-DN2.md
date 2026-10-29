@@ -85,6 +85,25 @@ of the receive buffer. None of these limits is about mod RAM or stack. The
 writer also checks the packing, the seal (HMAC), the flash bounds, and that
 the main OS can be unpacked in place safely.
 
+## Blocks mods and the 1.5 MiB upload
+
+A [blocks payload](FORMAT.md#digitone-ii-sharc-blocks) loads at L2
+`[0x20088400,0x200c0000)` and DDR `[0x80a00000,0x81000000)`,
+`[0x84000000,0x85000000)`. These ranges are the ones a third-party
+firmware (FXP2, julian-kominiak) has used on a unit since its builds M10 (L2 to
+0x200a0000), M40 (to 0x200b0000), M50 (DDR 0x84000000 data) and M54 (DDR
+0x80a00000 code), on OS 1.11. OS 1.11's section 7 is byte for byte 1.12's.
+One of those builds put a block from 0x200b0000 to 0x200fe938 and the unit
+did not start; L2 from 0x200c0000 up is therefore outside the ranges.
+
+The main OS's DSP upload (1.12: `0x400cf6b0`, `0x400cf6da` allocate two
+1 MiB buffers; `0x400cf710` refuses a stored section over 1 MiB and
+`0x400cf748` a decoded one over 1 MiB - 1; 1.11's code there is the same
+instruction for instruction) is where the section limits come from. The
+same firmware raises all four to 1.5 MiB (`dsp-upload-dn2`) and has played
+a section 7 of 1,467,100 bytes decoded (763,476 stored) on a unit since
+then. The buffers come from the OS heap (32 MiB).
+
 ## How sure we are the memory is free
 
 The last byte the stock boot loads into L2 is at `0x2008823c`. Nothing being

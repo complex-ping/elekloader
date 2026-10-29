@@ -54,6 +54,11 @@ export type SharcProfile = {
   stackMax?: number
   codeGuardBytes?: number
   keyedPitchTable?: [number, string]
+  dataSites?: Record<number, [string, string]>   // exact stock data sites a profile qualifies (stock, replacement)
+  blocksAbi?: string                            // a blocks mod's payload ABI
+  blocksRanges?: Range[]                       // where a blocks mod may add load / fill records (loader bytes)
+  uploadRaise?: [string, number, number, [number, string, string][]]   // resource name, stored and decoded limits, the
+                                               // main OS sites (address, stock, raised) a build must hold for them
 }
 
 export type Release = {
@@ -281,6 +286,11 @@ export const DIGITONE_MK2: Device = {
         activeKeyedCore: { segments: [[12, 'code', 'af2f375dc58a8ccd4b8abd89b1fb526441baa6fb5da9266c2b664e69d90fc829']],
           zero: [[1008, 16]], entries: { hook_offset_bytes: 12 }, stackBytes: 116 },
         hook: [0x2838489a, '8715ffff78ff', '3e06160006eb'],
+        blocksAbi: 'dn2-blocks-v1',
+        blocksRanges: [[0x20088400, 0x200c0000], [0x80a00000, 0x81000000], [0x84000000, 0x85000000]],
+        uploadRaise: ['dn2-dsp-upload-1536k', 0x180000, 0x17ffff,
+          [[0x400cf6b0, '2f3c00100000', '2f3c00180000'], [0x400cf6da, '2f3c00100000', '2f3c00180000'],
+            [0x400cf710, '0c8000100000', '0c8000180000'], [0x400cf748, '0c8200100000', '0c8200180000']]],
       },
     },
   ],

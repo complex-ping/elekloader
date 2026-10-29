@@ -316,10 +316,11 @@ export function verify(out: Uint8Array, stock: Syx, wantMain: Uint8Array, dev: D
   if (wantSharc !== null) {
     const s7 = o.stored.get(dspSid!)!
     if (classify(s7) !== 'packed') throw new SyxError('the SHARC section is not a packed stream with a valid byte sum')
-    if (s7.length > profile!.storedMax) throw new SyxError('the SHARC stored section exceeds the profile limit')
+    const [storedMax, decodedMax] = sharc.limits(profile!, wantMain, dev.mainLoad)
+    if (s7.length > storedMax) throw new SyxError('the SHARC stored section exceeds the profile limit')
     const dsp = depackSection(s7)
     if (!equal(dsp, wantSharc)) throw new SyxError('the SHARC section does not depack to the patched stream')
-    try { sharc.parse(dsp, profile!) } catch (e) {
+    try { sharc.parse(dsp, { ...profile!, decodedMax }) } catch (e) {
       if (e instanceof ModError) throw new SyxError(e.message)
       throw e
     }
