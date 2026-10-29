@@ -1,0 +1,212 @@
+{
+ "id": "inserts-dn2",
+ "version": "0.1",
+ "title": "Inserts (FLNG)",
+ "category": "Effects",
+ "license": "GPL-2.0-or-later",
+ "description": "A flanger insert on every voice: a FLNG page after [FX]'s own, its knobs p-lockable and LFO destinations; before the filter or after the pan.",
+ "device": "digitone-mk2",
+ "os": "1.12",
+ "sources": [
+  "inserts.c"
+ ],
+ "storage": [
+  {
+   "sym": "fl_del",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_dpth",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_spd",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_fdbk",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_wdth",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_sph",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_rout",
+   "scope": "sound",
+   "bits": 1,
+   "lock": true,
+   "lfo": true
+  },
+  {
+   "sym": "fl_mix",
+   "scope": "sound",
+   "bits": 7,
+   "lock": true,
+   "lfo": true
+  }
+ ],
+ "contribute": [
+  {
+   "to": "core_params",
+   "order": 60,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_del",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 61,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_dpth",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 62,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_spd",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 63,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_fdbk",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 64,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_wdth",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 65,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_sph",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 66,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_rout",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_params",
+   "order": 67,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_param_mix",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "core_pages",
+   "order": 60,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_page",
+     0
+    ]
+   ]
+  },
+  {
+   "to": "ev_dsp_tx",
+   "order": 60,
+   "data": "00000000",
+   "relocs": [
+    [
+     0,
+     "abs32",
+     "sym:fl_tx",
+     0
+    ]
+   ]
+  }
+ ],
+ "resources": {
+  "core": "0.4"
+ },
+ "requires": [
+  "core"
+ ],
+ "sharc": {
+  "artifact": "flng.sharc.json"
+ }
+}

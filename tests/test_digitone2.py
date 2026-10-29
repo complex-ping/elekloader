@@ -336,7 +336,8 @@ CORE_SITES = ((0x40000538, '4eb9400019b0'), (0x4002e464, '4eb94011d5d4'),
               (0x400395b6, '52827265b28266cc'),
               (0x400dc18e, '2f027264206f0008'),
               (0x4004cb16, 'e0812f0142a74eb9400dce5e508f2200e189'),
-              (0x4004cb82, 'e0812f0142a74e95508f2200e189'))
+              (0x4004cb82, 'e0812f0142a74e95508f2200e189'),
+              (0x40025e82, '203940287c38'))   # 0.4: ev_dsp_tx, the audio interrupt's frame step
 PARAM_SITES = {a: len(b) // 2 for a, b in CORE_SITES[12:]}
 PARAM_SITES[0x400d8b14] = 2             # the builder for every note: beq -> nop
 STOCK_ROWS = 0x401f83a4                 # the parameter table core 0.4 moves into core_rows
@@ -448,7 +449,8 @@ CORE_HOOKS = {0x40000538: ('4eb9', 'boot'), 0x4002e464: ('4eb9', 'core_tick'),
               0x400395b6: ('4ef9', 'core_dest_walk'),
               0x400dc18e: ('4ef9', 'core_slot_row'),
               0x4004cb16: ('4eb9', 'core_dest_store'),
-              0x4004cb82: ('4eb9', 'core_dest_store')}
+              0x4004cb82: ('4eb9', 'core_dest_store'),
+              0x40025e82: ('4eb9', 'core_dsp_tx_stub')}
 
 
 def assert_hooked(new, man):
@@ -592,7 +594,7 @@ def test_core_preserves_the_0_1_control_contract():
     assert added == set(STORE_SITES) | set(PARAM_SITES) | set(table_sites(img))
     assert all(new['collections'][c] == e for c, e in old['collections'].items())
     assert set(new['collections']) - set(old['collections']) == {'core_store_ids', 'core_params', 'core_pages',
-                                                                 'core_lock_codes'}
+                                                                 'core_lock_codes', 'ev_dsp_tx'}
     assert all(new['symbols'].get(k) == v for k, v in old['symbols'].items())
     assert set(old['imports']) <= set(new['imports'])
 

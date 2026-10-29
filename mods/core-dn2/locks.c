@@ -55,7 +55,7 @@ unsigned core_param_value(unsigned field, void *sound);
 struct list_area { unsigned stamp, mask; unsigned char value[CODES]; };
 
 static unsigned track_mask[TRACKS], voice_mask[VOICES];
-static unsigned char track_value[TRACKS][CODES], voice_value[VOICES][CODES], voice_track[VOICES];
+static unsigned char track_value[TRACKS][CODES], voice_value[VOICES][CODES], voice_track[VOICES], voice_notes[VOICES];
 
 typedef unsigned (*table_fn)(void *);      /* stock's returns in d0: no pointer type (GCC reads those from a0) */
 typedef void (*notify_fn)(void *, void *);
@@ -278,6 +278,7 @@ void core_lock_note(unsigned voice, unsigned track, unsigned char *list)
     if (voice >= VOICES || track >= TRACKS)
         return;
     voice_track[voice] = track + 1;
+    voice_notes[voice]++;
     voice_mask[voice] = mask;
     track_mask[track] = mask;
     for (c = 0; c < CODES; c++)
@@ -342,4 +343,25 @@ unsigned core_param_voice(unsigned field, int voice)
 int core_voice_track(int voice)
 {
     return voice >= 0 && voice < VOICES ? voice_track[voice] - 1 : -1;
+}
+
+unsigned core_voice_notes(int voice)
+{
+    return voice >= 0 && voice < VOICES ? voice_notes[voice] : 0;
+}
+
+/* ---- ev_dsp_tx (dsptx.s): the frame's 30 free halfwords ----
+ * The link transfer to the DSP is 2748 bytes and the frame 2688: the driver
+ * (0x400cf922) fills its DMA list (0x80002510, 4 bytes an entry: command,
+ * data) from the frame for entries 0..1343 and writes only the command half
+ * of the rest, so the data halves of entries 1344..1373 reach the DSP as
+ * they are: at the end of its link in-buffer (0x2c29d0 + 4096 bank + 2688). */
+#define TX_LIST 0x80002510u
+#define TX_PAD 1344
+#define TX_WORDS 30
+
+void core_dsp_put(unsigned i, unsigned value)
+{
+    if (i < TX_WORDS)
+        *(volatile unsigned short *)(TX_LIST + 4 * (TX_PAD + i) + 2) = value;
 }

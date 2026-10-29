@@ -35,7 +35,11 @@ struct core_param {
     const char *short_name;      /* the knob's label, up to 4 characters */
     const char *name;            /* the long name, up to 15 */
     const char *group;           /* the group shown with it (a page's or an effect's name), up to 4 */
+    unsigned style;              /* CORE_DIAL, or CORE_ROUTE: a PRE / POST FLTR switch (0..1) as OD.RT's */
 };
+
+#define CORE_DIAL 0
+#define CORE_ROUTE 1
 
 struct core_page {
     const char *name;            /* the page's name in the header, up to 4 characters */
@@ -59,5 +63,14 @@ unsigned core_param_track(unsigned field, int track);
 unsigned core_param_voice(unsigned field, int voice);
 /* the track a voice last played for, or -1 */
 int core_voice_track(int voice);
+/* the trigs a voice has played, mod 256 (a change = a new trig on it) */
+unsigned core_voice_notes(int voice);
+
+/* Values for a DSP mod: ev_dsp_tx handlers run in the audio interrupt, once
+ * a block, before the frame for the DSP goes out; core_dsp_put(i, v) writes
+ * halfword i (0..29) of the 30 the link carries after the frame, which reach
+ * the DSP at the end of its link in-buffer (docs/SHARC-DN2.md, "Values for
+ * the DSP"). Contribute a handler with "to": "ev_dsp_tx". */
+void core_dsp_put(unsigned i, unsigned value);
 
 #endif

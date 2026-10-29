@@ -9,7 +9,7 @@
  * ROWS (params.s, mod.json). Rows 321..361 are machines-dn2's (its 40 synth
  * knobs and a filter's G); 362..388 are the mod parameters, row
  * 362 + code - 101 for code 101..127. A mod parameter's row is the Overdrive
- * row's (304: a common 0..127 knob, owner 15) with its own slot (the code),
+ * row's (304: a common 0..127 knob, owner 15; a CORE_ROUTE one OD.RT's, 305) with its own slot (the code),
  * range, default and names, no CC or NRPN and a unique id stock does not use.
  *
  * Values. The value getter and setter (0x4003713c, 0x40037b74) refuse a
@@ -33,6 +33,8 @@
 #define ROWS (STOCK_ROWS + MACHINE_ROWS + CODES)
 #define CODE_ROW(c) (STOCK_ROWS + MACHINE_ROWS + (c) - FIRST_CODE)
 #define TEMPLATE 304                    /* Overdrive: owner 15 (every machine), 0..127 */
+#define ROUTE_TEMPLATE 305              /* OVR Routing (OD.RT): the PRE / POST FLTR switch, 0..1 */
+#define STYLE_ROUTE 1
 #define MACHINE_TEMPLATE 0xd5           /* machines-dn2's knobs: A Env Decay */
 #define MACHINE_G 361
 #define MACHINE_G_TEMPLATE 0x26         /* MULTI-MODE's TYPE */
@@ -59,6 +61,7 @@ struct core_param {
     unsigned field;
     unsigned short min, max, def;
     const char *short_name, *name, *group;
+    unsigned style;
 };
 
 struct core_page {
@@ -76,6 +79,7 @@ void core_store_set(unsigned field, void *item, int index, unsigned value);
 
 struct row core_rows[ROWS];
 static const struct core_param *by_code[CODES];
+static unsigned short template_of[CODES];
 static struct string_rep names[CODES][3];
 static unsigned page_records[MAX_PAGES][PAGE_WORDS];
 unsigned core_fx_pages[1 + MAX_PAGES], core_fx_page_count;
@@ -173,11 +177,14 @@ void core_params_init(void)
         const struct core_param *p = *e;
         unsigned c = core_param_code(p->field);
         struct row *r;
-        if (c < FIRST_CODE || c >= FIRST_CODE + CODES || by_code[c - FIRST_CODE] || p->max > 255 || p->min > p->max)
+        unsigned t = p->style == STYLE_ROUTE ? ROUTE_TEMPLATE : TEMPLATE;
+        if (c < FIRST_CODE || c >= FIRST_CODE + CODES || by_code[c - FIRST_CODE] || p->max > 255 || p->min > p->max
+            || (p->style == STYLE_ROUTE && p->max > 1))
             continue;
         by_code[c - FIRST_CODE] = p;
+        template_of[c - FIRST_CODE] = t;
         r = &core_rows[CODE_ROW(c)];
-        copy_row(r, &core_stock_rows[TEMPLATE]);
+        copy_row(r, &core_stock_rows[t]);
         r->slot = c;
         r->min = p->min << 8;
         r->max = p->max << 8;
@@ -200,7 +207,7 @@ void core_params_init(void)
 unsigned core_value_class(unsigned row)
 {
     if (row >= CODE_ROW(FIRST_CODE) && row < ROWS)
-        return by_code[row - CODE_ROW(FIRST_CODE)] ? TEMPLATE : row;
+        return by_code[row - CODE_ROW(FIRST_CODE)] ? template_of[row - CODE_ROW(FIRST_CODE)] : row;
     if (row == MACHINE_G)
         return MACHINE_G_TEMPLATE;
     if (row >= STOCK_ROWS && row < MACHINE_G)

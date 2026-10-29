@@ -7,7 +7,7 @@
  "sharc": {"artifact": "bridge.sharc.json"},
  "sources": ["../core/core.s", "../core/settings.s", "../core-dt2/personalize.s",
              "input.c", "input.s", "sysex.s", "store.c", "store.s",
-             "params.c", "params.s", "locks.c", "locks.s", "lfo.c", "lfo.s"],
+             "params.c", "params.s", "locks.c", "locks.s", "lfo.c", "lfo.s", "dsptx.s"],
  "defsym": {
   "DRAWALL": "0x4011d60a",
   "KEYDISP": "0x4002c5c8",
@@ -60,6 +60,7 @@
   {"addr": "0x400dc18e", "stock": "2f027264206f0008", "op": "jmp", "target": "core_slot_row"},
   {"addr": "0x4004cb16", "stock": "e0812f0142a74eb9400dce5e508f2200e189", "op": "jsr", "target": "core_dest_store"},
   {"addr": "0x4004cb82", "stock": "e0812f0142a74e95508f2200e189", "op": "jsr", "target": "core_dest_store"},
+  {"addr": "0x40025e82", "stock": "203940287c38", "op": "jsr", "target": "core_dsp_tx_stub"},
   {"addr": "0x400c257c", "stock": "202f00040c8000000141", "op": "jmp", "target": "core_value_class_stub"},
   {"addr": "0x400c25d8", "stock": "7224202f0004", "op": "jmp", "target": "core_page_lookup"},
   {"addr": "0x400614e2", "stock": "720170052f012d40ffd8203c401e0464", "op": "jmp", "target": "core_fx_pages_stub"},
@@ -178,5 +179,5 @@
   {"addr": "0x4010784e", "stock": "bbfc00000140", "op": "bytes", "new": "bbfc00000184", "kind": "code"}
  ],
  "collections": {"ev_tick": 4, "ev_draw": 4, "ev_key": 4, "ev_enc": 4, "ev_settings": 4, "ev_personalize": 4, "ev_sysex": 4, "core_store_ids": 4,
-                 "core_params": 4, "core_pages": 4, "core_lock_codes": 8}
+                 "core_params": 4, "core_pages": 4, "core_lock_codes": 8, "ev_dsp_tx": 4}
 }
