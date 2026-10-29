@@ -1066,6 +1066,32 @@ the smallest mod that uses them.
 Call them from the UI task (`ev_tick`, `ev_draw`, `ev_key`, `ev_enc`), and
 the file system under its lock.
 
+### Boot (core-mc 0.3, Model:Cycles)
+
+`ev_boot` runs a mod's work once at boot, before the OS starts. `.boot`
+copies the mods' RAM image and clears their `.bss`, then calls each
+`ev_boot` handler (`void f(void)`, in `order`), then the two stock calls it
+replaced (the SRAM copy and the OS's `.bss` clear). A handler runs:
+- in supervisor mode, with interrupts off and the data cache off;
+- before any firmware routine may be called, so it calls none;
+- before the OS clears its own `.bss`, so it writes only the mods' RAM.
+
+It is the place to fill tables the OS reads while it starts, such as a
+companion's machine tables. A mod on `ev_boot` says
+`"resources": {"core": "0.3"}`. `examples/boot-marker-mc` is the smallest:
+it writes a word at boot and draws a square in the bottom-right corner once
+the word is there.
+
+**The caches.** The Model:Cycles' bootstrap leaves the instruction and
+branch caches on (CACR 0x0008c000), and they do not see the copy `.boot`
+makes, so code the copy wrote could run from stale lines. `.boot`
+invalidates both (`BOOT_CACR`, 0x000cc100, the bootstrap's own value)
+before it calls any handler.
+
+0.3 keeps 0.2's sites, tables, exports and `.run`, with `core_boot_init`
+added at the end of `.run`; its `.boot` is 0.2's with the invalidation and
+the call inserted.
+
 ### Machine pages (core 3.0 and machine-pages, Digitakt mk1)
 
 Every machine mod used to hook the SRC page itself (its layout, labels,

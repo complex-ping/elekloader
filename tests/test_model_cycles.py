@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""The Model:Cycles: core-mc 0.2's firmware locations (pytest, or run with python).
+"""The Model:Cycles: core-mc 0.2's firmware locations and 0.3's ev_boot (pytest, or run with python).
 
 Needs a stock file, which never goes in the repo, named by an environment
 variable; a test whose input is missing is skipped, not passed:
@@ -9,7 +9,11 @@ Building the core and the example also needs the cross toolchain
 
 core-mc 0.2 is 0.1 and the firmware locations as exports (mods/core-mc/fw.s):
 the same sites with the same bytes, the same tables, every symbol where it
-was, the same code, and absolute symbols only.
+was, the same code, and absolute symbols only. core-mc 0.3 is 0.2 and
+ev_boot (mods/core-mc/boot.s): .boot invalidates the instruction and branch
+caches, which the bootstrap leaves on, and then calls core_boot_init, before
+the stock calls; .run grows at its end. Each older version is built from
+the manifest without what the newer one added.
 """
 import json
 import os
@@ -32,6 +36,8 @@ CORE_MC = os.path.join(ROOT, 'mods', 'core-mc')
 FW_S = os.path.join(CORE_MC, 'fw.s')
 CORE_H = os.path.join(ROOT, 'elekloader', 'sdk', 'include', 'model-cycles', 'core.h')
 EXAMPLE = os.path.join(ROOT, 'examples', 'track-marker-mc')
+BOOT_EXAMPLE = os.path.join(ROOT, 'examples', 'boot-marker-mc')
+CACHE_OFF = bytes.fromhex('4e71203c000cc1004e7b00024e71')   # nop; move.l #BOOT_CACR,d0; movec d0,cacr; nop
 # The exports that are routines: the OS's code calls each one (the others are data it names).
 ROUTINES = {'fw_project', 'fw_project_tracks', 'fw_selection_active', 'fw_ui_states', 'fw_value_shown',
             'fw_trig_held', 'fw_key_held', 'fw_fill', 'fw_text', 'fw_font_make', 'fw_font_drop',
@@ -76,17 +82,24 @@ def built(mod_dir, tag):
     return _c[tag]
 
 
-def core_01_dir():
-    """mods/core-mc as 0.1 had it: core.s alone, no FW_* values."""
+def core_dir(version):
+    """mods/core-mc as an older version had it: 0.2 without boot.s and ev_boot, 0.1 also without fw.s."""
     with open(os.path.join(CORE_MC, 'mod.json')) as fh:
         m = json.load(fh)
-    m['version'] = '0.1'
-    m['sources'] = [os.path.join(ROOT, 'mods', 'core', 'core.s')]
-    m['defsym'] = {k: v for k, v in m['defsym'].items() if not k.startswith('FW_')}
+    m['version'] = version
+    m['sources'] = [os.path.join(ROOT, 'mods', 'core', 'core.s')] + ([os.path.join(CORE_MC, 'fw.s')]
+                                                                      if version == '0.2' else [])
+    m['defsym'] = {k: v for k, v in m['defsym'].items()
+                   if not k.startswith('BOOT_') and (version == '0.2' or not k.startswith('FW_'))}
+    m['collections'] = {k: v for k, v in m['collections'].items() if k != 'ev_boot'}
     d = tempfile.mkdtemp()
     with open(os.path.join(d, 'mod.json'), 'w') as fh:
         json.dump(m, fh)
     return d
+
+
+def section(m, name):
+    return elemod.parts_bytes(link.Mod2(m, 'x').sections[name]['parts'], stock(), DEV)
 
 
 def test_the_names_agree():
@@ -124,8 +137,8 @@ def test_each_export_is_a_routine_or_data_the_os_names():
 
 def test_core_mc_0_2_is_0_1_and_more():
     """The same sites, tables, symbols, relocations and code as 0.1; only absolute exports added."""
-    _p, new = built(CORE_MC, 'new')
-    _p, old = built(core_01_dir(), 'old')
+    _p, new = built(core_dir('0.2'), '0.2')
+    _p, old = built(core_dir('0.1'), '0.1')
     assert old['version'] == '0.1' and new['version'] == '0.2'
     assert new['sites'] == old['sites'] and new['collections'] == old['collections']
     assert set(old['exports']) <= set(new['exports'])
@@ -141,12 +154,43 @@ def test_core_mc_0_2_is_0_1_and_more():
             elemod.parts_bytes(m_old.sections[s]['parts'], img, DEV), s
 
 
+def test_core_mc_0_3_is_0_2_and_more():
+    """0.2's sites, exports, symbols and .run kept; ev_boot added; .boot is 0.2's with the cache invalidated and
+    core_boot_init called before the stock calls."""
+    _p, new = built(CORE_MC, 'new')
+    _p, old = built(core_dir('0.2'), '0.2')
+    assert old['version'] == '0.2' and new['version'] == '0.3'
+    assert new['sites'] == old['sites']
+    assert new['collections'] == dict(old['collections'], ev_boot={'entry': 4})
+    assert set(old['exports']) <= set(new['exports']) and 'core_boot_init' in new['exports']
+    assert all(new['symbols'][k] == v for k, v in old['symbols'].items())
+    run_old, run_new = section(old, '.run'), section(new, '.run')
+    assert run_new[:len(run_old)] == run_old and len(run_new) > len(run_old)
+    boot_old, boot_new = section(old, '.boot'), section(new, '.boot')
+    tail = 12                                   # jsr VBR_FN ; jmp VBR_FN2
+    head = len(boot_old) - tail
+    assert boot_new[:head] == boot_old[:head] and boot_new[-tail:] == boot_old[-tail:]
+    inserted = boot_new[head:-tail]
+    assert inserted[:len(CACHE_OFF)] == CACHE_OFF and inserted[len(CACHE_OFF):len(CACHE_OFF) + 2] == b'\x4e\xb9'
+    assert len(inserted) == len(CACHE_OFF) + 6
+
+
 def test_the_example_needs_core_0_2():
-    """examples/track-marker-mc names only core's exports: it links with 0.2, and 0.1 is refused."""
+    """examples/track-marker-mc names only core's exports: it links with the core, and 0.1 is refused."""
     new, _m = built(CORE_MC, 'new')
-    old, _m = built(core_01_dir(), 'old')
+    old, _m = built(core_dir('0.1'), '0.1')
     ex, m = built(EXAMPLE, 'example')
     assert not m['sites'] and set(m['imports']) <= {n for n, _d in fw_lines()}
+    assert lint.main([ex, '--stock', SYX, '--with', new]) == 0
+    assert lint.main([ex, '--stock', SYX, '--with', old]) != 0
+
+
+def test_the_boot_example_needs_core_0_3():
+    """examples/boot-marker-mc subscribes to ev_boot: it links with 0.3, and 0.2 is refused."""
+    new, _m = built(CORE_MC, 'new')
+    old, _m = built(core_dir('0.2'), '0.2')
+    ex, m = built(BOOT_EXAMPLE, 'boot-example')
+    assert not m['sites'] and m['imports'] == ['fw_fill']
     assert lint.main([ex, '--stock', SYX, '--with', new]) == 0
     assert lint.main([ex, '--stock', SYX, '--with', old]) != 0
 

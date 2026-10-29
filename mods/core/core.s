@@ -57,9 +57,20 @@ boot:
         move.w  %d0, DTMR0              | bus clock, free running
 4:
         .endif
+        .ifdef  BOOT_CACR
+        | The Model:Cycles' bootstrap leaves the instruction and branch caches
+        | on (CACR 0x0008c000), and they do not see the copy above: code it
+        | wrote may run from stale lines. Invalidate both before running any
+        | (core-mc: BOOT_CACR = 0x000cc100, the bootstrap's own value).
+        nop
+        move.l  #BOOT_CACR, %d0
+        movec   %d0, %cacr
+        nop
+        .endif
         .ifdef  BOOT_INIT
         | A device's own boot work, before the OS reads its data (core-ar2:
-        | the machines mods add, machines.c). The DDR image is in place.
+        | the machines mods add, machines.c; core-mc: ev_boot, boot.s). The
+        | DDR image is in place.
         jsr     core_boot_init
         .endif
         .ifdef  VBR_FN2

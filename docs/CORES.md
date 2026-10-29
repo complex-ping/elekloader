@@ -40,7 +40,7 @@ older ones people still have:
 | Octatrack MKI, MKII | 1.40C | `core-ot-0.3.1.elemod` | the [core-ot-v0.3.1](https://github.com/irpina/elekloader/releases/tag/core-ot-v0.3.1) pre-release, and the shop |
 | Octatrack MKI, MKII | 1.40C | `core-ot-0.8.elemod` | on main, not released: build it ([below](#building-a-core)) |
 | Octatrack MKI, MKII | 1.40C | `core-ot-0.1.elemod` | the v0.4.0 release: PURGE SAMPLES freezes the unit with it, so use 0.3.1 or newer |
-| Model:Cycles | 1.13 | `core-mc-0.2.elemod` | on main, not released: build it ([below](#building-a-core)) |
+| Model:Cycles | 1.13 | `core-mc-0.3.elemod` | on main, not released: build it ([below](#building-a-core)) |
 | Model:Samples | 1.13 | `core-ms-0.1.elemod` | on main, not released: build it ([below](#building-a-core)) |
 
 Each core keeps all of the one before it, on each OS both support: the same sites with the same
@@ -179,7 +179,10 @@ the one a mod that uses it names in `resources.core`.
   - the firmware locations its mods use, as exports (`fw_project`,
     `fw_key_held`, `fw_fill`, the kits, the file system;
     `elekloader/sdk/include/model-cycles/core.h`; 0.2; ADAPTING.md,
-    "Firmware locations (core-mc 0.2, Model:Cycles)").
+    "Firmware locations (core-mc 0.2, Model:Cycles)");
+  - `ev_boot`, a mod's work once at boot, before the OS starts, after
+    `.boot` has invalidated the caches the bootstrap leaves on (0.3;
+    ADAPTING.md, "Boot (core-mc 0.3, Model:Cycles)").
 
 The companion seq-events gives the Digitone mk1
 ([mods/seq-events-dn1](../mods/seq-events-dn1)), the Digitakt mk1
